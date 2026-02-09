@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elahe Panel - Subscription Info</title>
+  <link rel="stylesheet" href="/shared/css/common.css">
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #1e40af;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f0f4f8;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Vazirmatn', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      direction: rtl;
+    }
+
+    /* Header */
+    .page-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f4c81 100%);
+      color: white;
+      padding: 40px 20px 60px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .page-header::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0; right: 0;
+      height: 30px;
+      background: var(--bg);
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    }
+    .page-header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+    .page-header .subtitle { opacity: 0.85; font-size: 0.95rem; }
+    .page-header .version-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      margin-top: 8px;
+    }
+
+    /* Container */
+    .container { max-width: 960px; margin: -30px auto 40px; padding: 0 16px; position: relative; z-index: 1; }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      transition: box-shadow 0.2s;
+    }
+    .card:hover { box-shadow: var(--shadow-lg); }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title .icon { font-size: 1.3rem; }
+
+    /* Info Grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+    }
+    .info-item {
+      background: #f8fafc;
+      padding: 14px 12px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    .info-item .label { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-item .value { font-size: 1.15rem; font-weight: 700; }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-expired { background: #fef2f2; color: #991b1b; }
+    .badge-limited { background: #fefce8; color: #854d0e; }
+
+    /* Subscription link box */
+    .sub-link-box {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border: 2px dashed #93c5fd;
+      padding: 20px;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+    .sub-link-box h3 { margin-bottom: 8px; }
+    .sub-link-code {
+      display: block;
+      background: #0f172a;
+      color: #60a5fa;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 0.8rem;
+      word-break: break-all;
+      margin: 12px 0;
+      direction: ltr;
+      text-align: left;
+      user-select: all;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      background: #e2e8f0;
+      border-radius: 10px;
+      height: 10px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width 0.5s ease;
+    }
+    .progress-bar .fill.green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .progress-bar .fill.yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .progress-bar .fill.red { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+    /* Config items */
+    .config-list { list-style: none; }
+    .config-item {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: transform 0.15s;
+      direction: ltr;
+    }
+    .config-item:hover { transform: translateX(-2px); }
+    .config-item .config-info { flex: 1; min-width: 0; }
+    .config-item .config-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #93c5fd;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .config-item .config-link {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      word-break: break-all;
+      max-height: 38px;
+      overflow: hidden;
+    }
+    .config-item .config-protocol {
+      display: inline-block;
+      background: rgba(59,130,246,0.2);
+      color: #93c5fd;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #16a34a; }
+    .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+    .btn-copy { background: #3b82f6; color: white; white-space: nowrap; }
+
+    /* Download section */
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .download-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .download-item .dl-name { font-weight: 600; font-size: 0.85rem; }
+
+    /* App grid */
+    .app-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .app-card {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .app-card h4 {
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .app-link {
+      display: block;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.82rem;
+      padding: 4px 0;
+    }
+    .app-link:hover { text-decoration: underline; }
+
+    /* Tunnel info section */
+    .tunnel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    .tunnel-card {
+      background: #f0fdf4;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #bbf7d0;
+    }
+    .tunnel-card.secondary { background: #eff6ff; border-color: #bfdbfe; }
+    .tunnel-card.backup { background: #fefce8; border-color: #fde68a; }
+    .tunnel-card h4 { font-size: 0.85rem; margin-bottom: 6px; }
+    .tunnel-card p { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* QR Code area */
+    .qr-section { text-align: center; margin-top: 12px; }
+    .qr-section canvas, .qr-section img { border-radius: 12px; box-shadow: var(--shadow); }
+
+    /* Tab navigation */
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .tab:hover { background: #f1f5f9; }
+    .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Loading / Error states */
+    .loading { text-align: center; padding: 60px 20px; }
+    .loading .spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-box { text-align: center; padding: 48px 20px; background: #fef2f2; border-radius: var(--radius); color: var(--danger); }
+    .inactive-box { text-align: center; padding: 48px 20px; background: #fefce8; border-radius: var(--radius); }
+
+    /* Tooltip */
+    .copied-tooltip {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #22c55e;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .copied-tooltip.show { opacity: 1; }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .page-header { padding: 30px 16px 50px; }
+      .page-header h1 { font-size: 1.4rem; }
+      .info-grid { grid-template-columns: repeat(2, 1fr); }
+      .config-item { flex-direction: column; }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --card-bg: #1e293b;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+        --border: #334155;
+      }
+      .info-item { background: #0f172a; }
+      .sub-link-box { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-color: #1e40af; }
+      .download-item, .app-card { background: #0f172a; }
+      .tunnel-card { background: #1a2e1a; border-color: #2d5a2d; }
+      .tunnel-card.secondary { background: #1a2440; border-color: #2d4a7a; }
+      .tunnel-card.backup { background: #2a2510; border-color: #5a4a10; }
+      .tab { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+      .tab:hover { background: #334155; }
+    }
+
+    /* Print styles */
+    @media print {
+      .page-header { background: #1e293b !important; print-color-adjust: exact; }
+      .btn, .qr-section { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="copied-tooltip" class="copied-tooltip">Copied!</div>
+
+  <div id="content" class="loading">
+    <div class="spinner"></div>
+    <p style="color: var(--text-muted);">Loading subscription...</p>
+  </div>
+
+  <script>
+    const token = window.location.pathname.split('/').pop();
+    const subApiUrl = `/sub/info/${token}`;
+    const subRawUrl = `${window.location.origin}/sub/${token}`;
+
+    async function loadSubscription() {
+      try {
+        const res = await fetch(subApiUrl, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) { showError('Subscription not found'); return; }
+        const data = await res.json();
+        renderPage(data);
+      } catch (e) {
+        showError('Failed to load subscription data');
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('content').innerHTML = `
+        <div class="page-header"><h1>Elahe Panel</h1></div>
+        <div class="container"><div class="error-box"><h2>${msg}</h2><p>Please check your subscription link or contact the administrator.</p></div></div>`;
+      document.getElementById('content').className = '';
+    }
+
+    function renderPage(data) {
+      if (!data.active) {
+        document.getElementById('content').innerHTML = `
+          <div class="page-header"><h1>Elahe Panel</h1></div>
+          <div class="container"><div class="inactive-box">
+            <h2 style="margin-bottom:8px">Subscription ${escHtml(data.reason || 'Inactive')}</h2>
+            <p>Your subscription is <strong>${escHtml(data.reason || 'inactive')}</strong>. Please contact the administrator.</p>
+          </div></div>`;
+        document.getElementById('content').className = '';
+        return;
+      }
+
+      const u = data.user;
+      const configs = data.configs || [];
+      const apps = data.apps || {};
+      const wgConfigs = data.wireguardConfigs || [];
+      const ovpnConfigs = data.openvpnConfigs || [];
+
+      const trafficPct = u.dataLimit > 0 ? Math.min(100, (u.dataUsed / u.dataLimit) * 100) : 0;
+      const trafficColor = trafficPct > 90 ? 'red' : trafficPct > 70 ? 'yellow' : 'green';
+
+      const daysLeft = u.expireAt ? Math.max(0, Math.ceil((new Date(u.expireAt) - new Date()) / 86400000)) : Infinity;
+      const expireColor = daysLeft <= 3 ? 'color:var(--danger)' : daysLeft <= 7 ? 'color:var(--warning)' : 'color:var(--success)';
+
+      // Group configs by protocol
+      const grouped = {};
+      configs.forEach(c => {
+        const p = c.protocol || 'other';
+        if (!grouped[p]) grouped[p] = [];
+        grouped[p].push(c);
+      });
+
+      let html = `
+        <div class="page-header">
+          <h1>Elahe Panel</h1>
+          <div class="subtitle">Subscription Management</div>
+          <div class="version-badge">v0.0.3 | Developer: EHSANKiNG</div>
+        </div>
+
+        <div class="container">
+          <!-- User Info -->
+          <div class="card">
+            <div class="card-title"><span class="icon">&#128100;</span> ${escHtml(u.username)}'s Subscription</div>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="label">Plan</div>
+                <div class="value">${escHtml(u.plan)}</div>
+              </div>
+              <div class="info-item">
+                <div class="label">Status</div>
+                <div class="value"><span class="badge badge-${u.status === 'active' ? 'active' : u.status === 'expired' ? 'expired' : 'limited'}">${escHtml(u.status)}</span></div>
+              </div>
+              <div class="info-item">
+                <div class="label">Traffic Used</div>
+                <div class="value">${formatBytes(u.dataUsed)}</div>
+              </div>
+              <div class="info-item">
+                <div class="label">Traffic Limit</div>
+                <div class="value">${u.dataLimit > 0 ? formatBytes(u.dataLimit) : 'Unlimited'}</div>
+              </div>
+              <div class="info-item">
+                <div class="label">Expires</div>
+                <div class="value" style="${expireColor}">${u.expireAt ? formatDate(u.expireAt) : 'Never'}</div>
+              </div>
+              <div class="info-item">
+                <div class="label">Max Devices</div>
+                <div class="value">${u.maxConnections}</div>
+              </div>
+            </div>
+            ${u.dataLimit > 0 ? `
+            <div style="margin-top:14px">
+              <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted)">
+                <span>Traffic: ${formatBytes(u.dataUsed)} / ${formatBytes(u.dataLimit)}</span>
+                <span>${trafficPct.toFixed(1)}%</span>
+              </div>
+              <div class="progress-bar"><div class="fill ${trafficColor}" style="width:${trafficPct}%"></div></div>
+            </div>` : ''}
+            ${u.expireAt ? `
+            <div style="margin-top:10px;font-size:0.8rem;color:var(--text-muted)">
+              <span style="${expireColor};font-weight:600">${daysLeft}</span> days remaining
+            </div>` : ''}
+          </div>
+
+          <!-- Subscription Link -->
+          <div class="card">
+            <div class="sub-link-box">
+              <h3>&#128279; Subscription Link</h3>
+              <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:4px">Add this link to V2rayNG / Hiddify / Streisand / Clash</p>
+              <code class="sub-link-code" id="sub-link">${escHtml(subRawUrl)}</code>
+              <button class="btn btn-primary" onclick="copyText('${subRawUrl}')">&#128203; Copy Link</button>
+            </div>
+            <div class="qr-section" id="qr-container"></div>
+          </div>
+
+          <!-- Configs -->
+          <div class="card">
+            <div class="card-title"><span class="icon">&#128268;</span> Connection Configs (${configs.length})</div>
+            <div class="tabs" id="config-tabs">
+              <button class="tab active" data-tab="all" onclick="switchTab('all')">All (${configs.length})</button>
+              ${Object.entries(grouped).map(([p, list]) =>
+                `<button class="tab" data-tab="${p}" onclick="switchTab('${p}')">${escHtml(protocolLabel(p))} (${list.length})</button>`
+              ).join('')}
+            </div>
+
+            <div class="tab-content active" id="tab-all">
+              <ul class="config-list">
+                ${configs.map((c, i) => renderConfigItem(c, i)).join('')}
+              </ul>
+            </div>
+
+            ${Object.entries(grouped).map(([p, list]) => `
+              <div class="tab-content" id="tab-${p}">
+                <ul class="config-list">
+                  ${list.map((c, i) => renderConfigItem(c, i)).join('')}
+                </ul>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- TrustTunnel Config (Always Active) -->
+          ${(data.trustTunnelConfigs && data.trustTunnelConfigs.length > 0) ? `
+          <div class="card">
+            <div class="card-title"><span class="icon">&#128268;</span> TrustTunnel (HTTP/3) - Always Active</div>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px">TrustTunnel runs on port 8443 with HTTP/3 (QUIC) transport and application layer camouflage. Always active.</p>
+            ${data.trustTunnelConfigs.map(tt => \`
+              <div style="background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;margin-bottom:10px;direction:ltr">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                  <span style="font-weight:600;color:#93c5fd">\${escHtml(tt.name)}</span>
+                  <span style="background:rgba(34,197,94,0.2);color:#4ade80;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600">ALWAYS ACTIVE</span>
+                </div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:8px">
+                  Server: \${escHtml(tt.serverIp)}:\${tt.port} | Transport: \${escHtml(tt.transport)} | Encryption: \${escHtml(tt.encryption)}
+                </div>
+                <div style="font-size:0.7rem;color:#64748b;word-break:break-all;margin-bottom:8px">\${escHtml(tt.link)}</div>
+                <button class="btn btn-copy btn-sm" onclick="copyText('\${(tt.link || '').replace(/'/g, "\\\\'")}')">&#128203; Copy Link</button>
+              </div>
+            \`).join('')}
+            <div style="margin-top:8px;font-size:0.78rem;color:var(--text-muted)">
+              <strong>Compatible Apps:</strong> Hiddify (Android/iOS/Windows/Mac/Linux), Streisand (iOS)
+            </div>
+          </div>` : ''}
+
+          <!-- Tunnel Architecture Info -->
+          <div class="card">
+            <div class="card-title"><span class="icon">&#127760;</span> Tunnel Architecture (Autopilot)</div>
+            <div class="tunnel-grid">
+              <div class="tunnel-card">
+                <h4>&#9889; Primary Channel (Stealth)</h4>
+                <p>VLESS + Reality with XTLS-Vision<br>Port 443 | Auto-selected best tunnel</p>
+              </div>
+              <div class="tunnel-card secondary">
+                <h4>&#127760; TrustTunnel (HTTP/3)</h4>
+                <p>Port 8443 | Always Active<br>Application Layer Camouflage</p>
+              </div>
+              <div class="tunnel-card">
+                <h4>&#128274; OpenVPN</h4>
+                <p>Ports 110, 510 | Always Active<br>Dedicated ports, always running</p>
+              </div>
+              <div class="tunnel-card">
+                <h4>&#128274; WireGuard</h4>
+                <p>Ports 1414, 53133 | Always Active<br>Dedicated ports, always running</p>
+              </div>
+              <div class="tunnel-card backup">
+                <h4>&#128737; Auto-Switch Backup (Port 443)</h4>
+                <p>FRP (TLS) | GOST (TLS/QUIC) | Chisel (TLS) | SSH<br>Best tunnel selected every 10 minutes</p>
+              </div>
+            </div>
+            <p style="margin-top:12px;font-size:0.78rem;color:var(--text-muted)">
+              Autopilot monitors all tunnels every 10 minutes. Best tunnel is automatically selected based on latency, jitter, and packet loss scoring. OpenVPN, WireGuard, and TrustTunnel are always active on their dedicated ports.
+            </p>
+          </div>`;
+
+      // WireGuard Downloads
+      if (wgConfigs.length > 0) {
+        html += `
+          <div class="card">
+            <div class="card-title"><span class="icon">&#128229;</span> WireGuard Config Downloads</div>
+            <div class="download-grid">
+              ${wgConfigs.map(c => `
+                <div class="download-item">
+                  <span class="dl-name">${escHtml(c.name)}</span>
+                  <button class="btn btn-success btn-sm" onclick="downloadConfig('${escHtml(c.name)}.conf', '${btoa(c.downloadableConfig || '')}')">&#11015; .conf</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+      }
+
+      // OpenVPN Downloads
+      if (ovpnConfigs.length > 0) {
+        html += `
+          <div class="card">
+            <div class="card-title"><span class="icon">&#128229;</span> OpenVPN Config Downloads</div>
+            <div class="download-grid">
+              ${ovpnConfigs.map(c => `
+                <div class="download-item">
+                  <span class="dl-name">${escHtml(c.name)}</span>
+                  <button class="btn btn-success btn-sm" onclick="downloadConfig('${escHtml(c.name)}.ovpn', '${btoa(c.downloadableConfig || '')}')">&#11015; .ovpn</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+      }
+
+      // Apps
+      html += `
+          <div class="card">
+            <div class="card-title"><span class="icon">&#128241;</span> Recommended Apps</div>
+            <div class="app-grid">
+              ${Object.entries(apps).map(([platform, appList]) => `
+                <div class="app-card">
+                  <h4>${platformIcon(platform)} ${platform.charAt(0).toUpperCase() + platform.slice(1)}</h4>
+                  ${appList.map(app => `<a href="${escHtml(app.url)}" target="_blank" rel="noopener" class="app-link">${escHtml(app.name)} &#8599;</a>`).join('')}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:0.78rem">
+            <p>Elahe Panel v0.0.3 | Developed by EHSANKiNG</p>
+            <p style="margin-top:4px">Multi-Protocol Tunnel Management System</p>
+          </div>
+        </div>`;
+
+      document.getElementById('content').innerHTML = html;
+      document.getElementById('content').className = '';
+
+      // Generate QR code if library available
+      generateQR(subRawUrl);
+    }
+
+    function renderConfigItem(c, idx) {
+      const linkEscaped = escHtml(c.link || '');
+      return `
+        <li class="config-item">
+          <div class="config-info">
+            <div class="config-name">
+              <span class="config-protocol">${escHtml(c.protocol || '')}</span>
+              ${escHtml(c.name || '')}
+            </div>
+            <div class="config-link">${linkEscaped}</div>
+          </div>
+          <button class="btn btn-copy btn-sm" onclick="copyText(\`${(c.link || '').replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)">&#128203; Copy</button>
+        </li>`;
+    }
+
+    function protocolLabel(p) {
+      const labels = {
+        'vless-reality': 'VLESS+Reality',
+        'vmess': 'VMess',
+        'trojan': 'Trojan',
+        'wireguard': 'WireGuard',
+        'openvpn': 'OpenVPN',
+        'shadowsocks': 'Shadowsocks',
+        'hysteria2': 'Hysteria2',
+        'trusttunnel': 'TrustTunnel',
+      };
+      return labels[p] || p;
+    }
+
+    function platformIcon(p) {
+      const icons = {
+        android: '&#129302;',
+        ios: '&#127822;',
+        windows: '&#128187;',
+        mac: '&#128187;',
+        linux: '&#128039;',
+      };
+      return icons[p] || '&#128229;';
+    }
+
+    // ============ Utilities ============
+
+    function copyText(text) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(showCopied);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showCopied();
+      }
+    }
+
+    function showCopied() {
+      const el = document.getElementById('copied-tooltip');
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1500);
+    }
+
+    function downloadConfig(filename, b64content) {
+      try {
+        const content = atob(b64content);
+        const blob = new Blob([content], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        alert('Download failed');
+      }
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function formatDate(dateStr) {
+      try {
+        return new Date(dateStr).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+      } catch {
+        return dateStr;
+      }
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    async function generateQR(text) {
+      const container = document.getElementById('qr-container');
+      if (!container) return;
+      try {
+        // Use a simple QR code API
+        const img = document.createElement('img');
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(text)}`;
+        img.alt = 'Subscription QR Code';
+        img.style.marginTop = '16px';
+        img.style.borderRadius = '12px';
+        img.onerror = () => { container.innerHTML = ''; };
+        container.appendChild(img);
+      } catch (e) {
+        // Silently fail
+      }
+    }
+
+    // ============ Init ============
+    loadSubscription();
+  </script>
+</body>
+</html>

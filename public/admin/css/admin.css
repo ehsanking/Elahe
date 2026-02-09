@@ -1,0 +1,68 @@
+/* Elahe Panel - Admin Dashboard Styles */
+body { font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; }
+
+.admin-layout { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar { width: 260px; background: #0f172a; color: #94a3b8; display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; z-index: 50; transition: transform 0.3s; }
+.sidebar-header { padding: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.sidebar-logo { font-size: 24px; color: #3b82f6; }
+.sidebar-title { font-size: 16px; font-weight: 700; color: white; }
+.sidebar-version { font-size: 10px; background: rgba(59,130,246,0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; }
+.sidebar-nav { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-link { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; color: #94a3b8; text-decoration: none; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+.sidebar-link:hover { background: rgba(255,255,255,0.05); color: white; }
+.sidebar-link.active { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.sidebar-icon { font-size: 18px; width: 24px; text-align: center; }
+.sidebar-footer { padding: 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+
+/* Main */
+.main-content { flex: 1; margin-left: 260px; padding: 0; }
+.topbar { display: flex; align-items: center; gap: 16px; padding: 16px 24px; background: white; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 10; }
+.topbar h2 { flex: 1; font-size: 18px; font-weight: 600; }
+.topbar-menu { display: none; background: none; border: none; font-size: 24px; cursor: pointer; }
+.topbar-right { font-size: 14px; color: #64748b; }
+
+.page { padding: 24px; }
+
+/* Stat Cards */
+.stat-card { background: white; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.stat-blue { background: #eff6ff; color: #3b82f6; }
+.stat-green { background: #f0fdf4; color: #22c55e; }
+.stat-purple { background: #faf5ff; color: #a855f7; }
+.stat-orange { background: #fff7ed; color: #f97316; }
+.stat-value { font-size: 24px; font-weight: 700; color: #0f172a; }
+.stat-label { font-size: 13px; color: #64748b; }
+
+/* Server Cards */
+.server-card { position: relative; }
+.server-type { position: absolute; top: 16px; right: 16px; }
+.server-ip { font-family: monospace; font-size: 14px; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; }
+.server-meta { display: flex; gap: 16px; margin-top: 12px; font-size: 13px; color: #64748b; }
+.token-display { font-family: monospace; font-size: 11px; background: #0f172a; color: #60a5fa; padding: 8px; border-radius: 6px; word-break: break-all; margin-top: 8px; }
+
+/* Modal extras */
+.modal-title { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+.modal-close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
+
+/* User info */
+.user-field { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+.user-field-label { color: #64748b; }
+.user-field-value { font-weight: 500; font-family: monospace; }
+.sub-link { display: block; word-break: break-all; background: #f1f5f9; padding: 8px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-top: 8px; }
+.config-link { display: block; background: #0f172a; color: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-family: monospace; font-size: 11px; word-break: break-all; margin-bottom: 6px; }
+
+/* Pagination */
+.pagination { display: flex; gap: 4px; justify-content: center; }
+.pagination button { padding: 6px 12px; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.pagination button.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; }
+  .topbar-menu { display: block; }
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}

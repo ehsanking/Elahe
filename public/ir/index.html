@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="گذر تحریم - سرویس تغییر دی‌ان‌اس برای دسترسی آزاد به خدمات آنلاین">
+  <meta name="keywords" content="DNS, تغییر DNS, دور زدن تحریم, دسترسی آزاد, گذر تحریم">
+  <title id="site-title">گذر تحریم - سرویس DNS ایمن</title>
+  <link rel="stylesheet" href="/shared/css/common.css">
+  <link rel="stylesheet" href="/css/ir-style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header" id="header">
+    <div class="container">
+      <nav class="nav">
+        <div class="nav-brand">
+          <div class="logo" id="logo">
+            <svg width="40" height="40" viewBox="0 0 40 40">
+              <defs>
+                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:var(--primary)"/>
+                  <stop offset="100%" style="stop-color:var(--secondary)"/>
+                </linearGradient>
+              </defs>
+              <circle cx="20" cy="20" r="18" fill="url(#logoGrad)" opacity="0.1"/>
+              <path d="M12 20 L18 14 L24 20 L18 26Z" fill="url(#logoGrad)"/>
+              <circle cx="28" cy="14" r="4" fill="var(--accent)" opacity="0.8"/>
+            </svg>
+          </div>
+          <span class="brand-name" id="brand-name">گذر تحریم</span>
+        </div>
+        <div class="nav-links" id="nav-links">
+          <a href="#home" class="nav-link active">خانه</a>
+          <a href="#services" class="nav-link">خدمات</a>
+          <a href="#pricing" class="nav-link">تعرفه‌ها</a>
+          <a href="#dns-setup" class="nav-link">راهنمای DNS</a>
+          <a href="#terms" class="nav-link">قوانین</a>
+          <a href="#about" class="nav-link">درباره ما</a>
+          <a href="#contact" class="nav-link">تماس</a>
+        </div>
+        <div class="nav-actions">
+          <button class="btn btn-outline btn-sm" onclick="showLoginModal()">ورود</button>
+          <button class="btn btn-primary btn-sm" onclick="showRegisterModal()">عضویت</button>
+          <button class="mobile-menu-btn" onclick="toggleMenu()">&#9776;</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge">&#10003; دارای نماد اعتماد الکترونیکی</div>
+        <h1 id="hero-title">دسترسی آزاد به اینترنت جهانی</h1>
+        <p class="hero-desc">سرویس تغییر دی‌ان‌اس هوشمند برای عبور از تحریم‌های ناعادلانه بین‌المللی. با تکنولوژی پیشرفته و سرعت بالا، بدون نگرانی از محدودیت‌ها به خدمات آنلاین دسترسی داشته باشید.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary btn-lg" onclick="scrollTo('#dns-setup')">شروع رایگان</button>
+          <button class="btn btn-outline btn-lg" onclick="scrollTo('#pricing')">مشاهده تعرفه‌ها</button>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><span class="stat-number">۲۵۰,۰۰۰+</span><span class="stat-label">کاربر فعال</span></div>
+          <div class="stat"><span class="stat-number">۹۹.۹%</span><span class="stat-label">آپ‌تایم</span></div>
+          <div class="stat"><span class="stat-number">۱۵</span><span class="stat-label">سرور فعال</span></div>
+          <div class="stat"><span class="stat-number">۲۴/۷</span><span class="stat-label">پشتیبانی</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-wave">
+      <svg viewBox="0 0 1440 120"><path fill="var(--bg)" d="M0,64L48,69.3C96,75,192,85,288,80C384,75,480,53,576,48C672,43,768,53,864,64C960,75,1056,85,1152,80C1248,75,1344,53,1392,42.7L1440,32L1440,120L0,120Z"></path></svg>
+    </div>
+  </section>
+
+  <!-- Services Section -->
+  <section class="section" id="services">
+    <div class="container">
+      <h2 class="section-title">خدمات ما</h2>
+      <p class="section-desc">با استفاده از فناوری‌های پیشرفته DNS، دسترسی شما به سرویس‌های تحت تحریم را فراهم می‌کنیم</p>
+      <div class="grid grid-3 gap-3 mt-4">
+        <div class="card service-card">
+          <div class="service-icon">&#127760;</div>
+          <h3>تغییر DNS هوشمند</h3>
+          <p>سیستم هوشمند DNS ما به صورت خودکار بهترین مسیر را برای دسترسی شما انتخاب می‌کند.</p>
+        </div>
+        <div class="card service-card">
+          <div class="service-icon">&#128274;</div>
+          <h3>رمزنگاری پیشرفته</h3>
+          <p>تمامی درخواست‌های DNS شما با استفاده از پروتکل‌های امن رمزنگاری می‌شوند.</p>
+        </div>
+        <div class="card service-card">
+          <div class="service-icon">&#9889;</div>
+          <h3>سرعت فوق‌العاده</h3>
+          <p>سرورهای بهینه‌سازی شده برای حداقل تأخیر و بیشترین سرعت پاسخ‌گویی.</p>
+        </div>
+        <div class="card service-card">
+          <div class="service-icon">&#128187;</div>
+          <h3>سازگاری کامل</h3>
+          <p>پشتیبانی از تمامی سیستم‌عامل‌ها شامل ویندوز، مک، لینوکس، اندروید و iOS.</p>
+        </div>
+        <div class="card service-card">
+          <div class="service-icon">&#128200;</div>
+          <h3>پایش ۲۴ ساعته</h3>
+          <p>سیستم مانیتورینگ ما ۲۴ ساعته کیفیت سرویس را بررسی و بهینه‌سازی می‌کند.</p>
+        </div>
+        <div class="card service-card">
+          <div class="service-icon">&#128176;</div>
+          <h3>طرح رایگان</h3>
+          <p>بدون نیاز به ثبت‌نام، از طرح رایگان ما برای مصارف شخصی استفاده کنید.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DNS Setup Guide -->
+  <section class="section section-alt" id="dns-setup">
+    <div class="container">
+      <h2 class="section-title">راهنمای تنظیم DNS</h2>
+      <p class="section-desc">در سه مرحله ساده DNS خود را تنظیم کنید</p>
+      <div class="dns-addresses mt-4">
+        <div class="card dns-card">
+          <h3>آدرس‌های DNS ما</h3>
+          <div class="dns-item">
+            <span class="dns-label">DNS اولیه:</span>
+            <code class="dns-value" onclick="copyToClipboard(this)">78.157.42.100</code>
+            <button class="btn btn-sm btn-outline" onclick="copyDns('78.157.42.100')">کپی</button>
+          </div>
+          <div class="dns-item">
+            <span class="dns-label">DNS ثانویه:</span>
+            <code class="dns-value" onclick="copyToClipboard(this)">78.157.42.101</code>
+            <button class="btn btn-sm btn-outline" onclick="copyDns('78.157.42.101')">کپی</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-3 gap-3 mt-4">
+        <div class="card step-card">
+          <div class="step-number">۱</div>
+          <h4>ویندوز</h4>
+          <p>Control Panel > Network > Properties > IPv4 > DNS Server</p>
+          <p class="step-detail">آدرس‌های بالا را در قسمت Preferred و Alternate DNS وارد کنید.</p>
+        </div>
+        <div class="card step-card">
+          <div class="step-number">۲</div>
+          <h4>اندروید</h4>
+          <p>Settings > Network > Private DNS</p>
+          <p class="step-detail">نام هاست DNS خصوصی را وارد کنید: dns.gozar-tahrim.ir</p>
+        </div>
+        <div class="card step-card">
+          <div class="step-number">۳</div>
+          <h4>iOS / macOS</h4>
+          <p>Settings > Wi-Fi > Configure DNS > Manual</p>
+          <p class="step-detail">سرورهای DNS موجود را حذف و آدرس‌های ما را اضافه کنید.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="section" id="pricing">
+    <div class="container">
+      <h2 class="section-title">تعرفه‌ها</h2>
+      <p class="section-desc">طرح مناسب خود را انتخاب کنید</p>
+      <div class="grid grid-3 gap-3 mt-4">
+        <div class="card pricing-card">
+          <div class="pricing-badge">رایگان</div>
+          <h3 class="pricing-name">سرویس رایگان</h3>
+          <div class="pricing-price">رایگان</div>
+          <ul class="pricing-features">
+            <li>&#10003; تغییر DNS پایه</li>
+            <li>&#10003; ۵۰ درخواست در ثانیه</li>
+            <li>&#10003; مناسب استفاده شخصی</li>
+            <li>&#10003; بدون نیاز به ثبت‌نام</li>
+            <li>&#10007; بدون پشتیبانی اختصاصی</li>
+          </ul>
+          <button class="btn btn-outline" onclick="scrollTo('#dns-setup')">شروع رایگان</button>
+        </div>
+        <div class="card pricing-card pricing-featured">
+          <div class="pricing-badge">محبوب‌ترین</div>
+          <h3 class="pricing-name">سطح نقره‌ای</h3>
+          <div class="pricing-price">۱۴۹,۰۰۰ <small>تومان/ماه</small></div>
+          <ul class="pricing-features">
+            <li>&#10003; DNS حرفه‌ای پرسرعت</li>
+            <li>&#10003; بدون محدودیت درخواست</li>
+            <li>&#10003; سرورهای اختصاصی</li>
+            <li>&#10003; پشتیبانی تلگرام</li>
+            <li>&#10003; مناسب کسب‌وکار کوچک</li>
+          </ul>
+          <button class="btn btn-primary" onclick="showRegisterModal()">خرید اشتراک</button>
+        </div>
+        <div class="card pricing-card">
+          <div class="pricing-badge pricing-badge-gold">طلایی VIP</div>
+          <h3 class="pricing-name">سطح طلایی</h3>
+          <div class="pricing-price">۲۹۹,۰۰۰ <small>تومان/ماه</small></div>
+          <ul class="pricing-features">
+            <li>&#10003; بالاترین سرعت DNS</li>
+            <li>&#10003; بدون محدودیت</li>
+            <li>&#10003; سرورهای VIP اختصاصی</li>
+            <li>&#10003; پشتیبانی ۲۴/۷ تلفنی</li>
+            <li>&#10003; SLA تضمین‌شده</li>
+          </ul>
+          <button class="btn btn-secondary" onclick="showRegisterModal()">خرید اشتراک</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Badges / Logo Carousel -->
+  <section class="section section-alt" id="trust">
+    <div class="container">
+      <h2 class="section-title">مجوزها و نشان‌ها</h2>
+      <div class="trust-badges mt-4">
+        <div class="trust-badge">
+          <img src="/images/trust-ecommerce.png" alt="نماد اعتماد الکترونیکی" width="120" height="120">
+          <span>نماد اعتماد الکترونیکی</span>
+        </div>
+        <div class="trust-badge">
+          <img src="/images/senfi-internet.png" alt="انجمن صنفی کسب و کارهای اینترنتی" width="120" height="120">
+          <span>عضو انجمن صنفی</span>
+        </div>
+        <div class="trust-badge">
+          <img src="/images/iso-9001.png" alt="ISO 9001:2015" width="80" height="80">
+          <span>ISO 9001:2015</span>
+        </div>
+        <div class="trust-badge">
+          <img src="/images/danesh-bonyad.png" alt="شبکه دانش بنیان ایران" width="120" height="120">
+          <span>شبکه دانش بنیان ایران</span>
+        </div>
+      </div>
+      <!-- Logo Carousel -->
+      <div class="logo-carousel mt-4">
+        <div class="carousel-track" id="carousel-track">
+          <div class="carousel-item"><div class="partner-logo">&#127968; شرکت هاست ایران</div></div>
+          <div class="carousel-item"><div class="partner-logo">&#9729; ابر آروان</div></div>
+          <div class="carousel-item"><div class="partner-logo">&#128423; دیتاسنتر پارس</div></div>
+          <div class="carousel-item"><div class="partner-logo">&#128301; فناوری اطلاعات</div></div>
+          <div class="carousel-item"><div class="partner-logo">&#127760; شبکه ملی</div></div>
+          <div class="carousel-item"><div class="partner-logo">&#128274; امنیت سایبری</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Terms Section -->
+  <section class="section" id="terms">
+    <div class="container">
+      <h2 class="section-title">قوانین و مقررات</h2>
+      <div class="card mt-4">
+        <div class="terms-content" id="terms-content">
+          <!-- Terms will be loaded dynamically -->
+          <div class="text-center"><div class="spinner"></div><p class="mt-2">در حال بارگذاری...</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Section -->
+  <section class="section section-alt" id="about">
+    <div class="container">
+      <h2 class="section-title">درباره ما</h2>
+      <div class="card mt-4">
+        <div class="about-content">
+          <p>مجموعه <strong>گذر تحریم</strong> با هدف تسهیل دسترسی کاربران ایرانی به خدمات آنلاین بین‌المللی تأسیس شده است. ما به عنوان یک شرکت دانش‌بنیان، با استفاده از تکنولوژی‌های پیشرفته تغییر DNS، تلاش می‌کنیم تا تأثیرات تحریم‌های ظالمانه بر دسترسی اینترنتی شهروندان ایرانی را کاهش دهیم.</p>
+          <p class="mt-2">تیم ما متشکل از متخصصان شبکه و امنیت اطلاعات است که با بیش از ۱۰ سال تجربه در زمینه زیرساخت‌های اینترنتی، سرویس‌های ایمن و با کیفیت بالا ارائه می‌دهند.</p>
+          <div class="about-stats mt-3 grid grid-4 gap-2">
+            <div class="text-center"><strong>۲۰۱۸</strong><br><small>سال تأسیس</small></div>
+            <div class="text-center"><strong>۴۵+</strong><br><small>متخصص فنی</small></div>
+            <div class="text-center"><strong>۱۲</strong><br><small>دیتاسنتر</small></div>
+            <div class="text-center"><strong>۲۵۰K+</strong><br><small>کاربر فعال</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Section -->
+  <section class="section" id="contact">
+    <div class="container">
+      <h2 class="section-title">تماس با ما</h2>
+      <div class="grid grid-2 gap-3 mt-4">
+        <div class="card">
+          <h3 class="mb-2">اطلاعات تماس</h3>
+          <div class="contact-item"><span>&#128231;</span> info@gozar-tahrim.ir</div>
+          <div class="contact-item"><span>&#128222;</span> ۰۲۱-۹۱۰۰۲۲۳۳</div>
+          <div class="contact-item"><span>&#128172;</span> @gozar_tahrim_support</div>
+          <div class="contact-item"><span>&#128205;</span> تهران، خیابان ولیعصر، برج فناوری، طبقه ۱۲</div>
+          <div class="contact-item mt-2"><span>&#128337;</span> ساعت پاسخگویی: شنبه تا پنجشنبه ۹ الی ۱۸</div>
+        </div>
+        <div class="card">
+          <h3 class="mb-2">ارسال پیام</h3>
+          <div class="form-group">
+            <label>نام و نام خانوادگی</label>
+            <input type="text" class="form-control" placeholder="نام خود را وارد کنید">
+          </div>
+          <div class="form-group">
+            <label>ایمیل</label>
+            <input type="email" class="form-control" placeholder="example@email.com" dir="ltr">
+          </div>
+          <div class="form-group">
+            <label>پیام</label>
+            <textarea class="form-control" rows="4" placeholder="پیام خود را بنویسید..."></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="alert('پیام شما ارسال شد. از تماس شما متشکریم.')">ارسال پیام</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="grid grid-4 gap-3">
+        <div>
+          <h4>گذر تحریم</h4>
+          <p class="footer-desc">سرویس DNS پیشرفته برای دسترسی آزاد و بدون محدودیت به اینترنت جهانی.</p>
+        </div>
+        <div>
+          <h4>لینک‌های سریع</h4>
+          <a href="#home">خانه</a>
+          <a href="#services">خدمات</a>
+          <a href="#pricing">تعرفه‌ها</a>
+          <a href="#terms">قوانین</a>
+        </div>
+        <div>
+          <h4>راهنما</h4>
+          <a href="#dns-setup">تنظیم DNS</a>
+          <a href="#about">درباره ما</a>
+          <a href="#contact">تماس با ما</a>
+          <a href="#">سوالات متداول</a>
+        </div>
+        <div>
+          <h4>شبکه‌های اجتماعی</h4>
+          <a href="#">تلگرام</a>
+          <a href="#">اینستاگرام</a>
+          <a href="#">توییتر</a>
+          <a href="#">آپارات</a>
+        </div>
+      </div>
+      <div class="footer-bottom mt-4">
+        <p>&copy; ۱۴۰۴ کلیه حقوق مادی و معنوی متعلق به مجموعه گذر تحریم می‌باشد.</p>
+        <p>شماره ثبت: ۵۸۳۲۱۹ | شناسه ملی: ۱۴۰۰۹۲۷۸۵۴۱</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Login Modal -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal">
+      <div class="modal-title">
+        ورود به حساب کاربری
+        <button class="modal-close" onclick="closeModal('loginModal')">&times;</button>
+      </div>
+      <div id="login-error" class="alert alert-error" style="display:none"></div>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>نام کاربری</label>
+          <input type="text" class="form-control" id="login-username" required dir="ltr">
+        </div>
+        <div class="form-group">
+          <label>رمز عبور</label>
+          <input type="password" class="form-control" id="login-password" required dir="ltr">
+        </div>
+        <div class="form-group">
+          <label>کد امنیتی</label>
+          <div class="captcha-box">
+            <div id="login-captcha-svg"></div>
+            <button type="button" class="captcha-refresh" onclick="loadCaptcha('login')">&#8635;</button>
+          </div>
+          <input type="text" class="form-control" id="login-captcha" placeholder="کد امنیتی را وارد کنید" required dir="ltr">
+          <input type="hidden" id="login-captcha-id">
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="login-btn">ورود</button>
+      </form>
+      <p class="text-center mt-2" style="font-size:13px;color:var(--text-secondary)">حساب ندارید؟ <a href="#" onclick="closeModal('loginModal');showRegisterModal()">عضویت</a></p>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal-overlay" id="registerModal">
+    <div class="modal">
+      <div class="modal-title">
+        عضویت در سایت
+        <button class="modal-close" onclick="closeModal('registerModal')">&times;</button>
+      </div>
+      <div id="register-error" class="alert alert-error" style="display:none"></div>
+      <form onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label>نام و نام خانوادگی</label>
+          <input type="text" class="form-control" id="reg-name" required>
+        </div>
+        <div class="form-group">
+          <label>ایمیل</label>
+          <input type="email" class="form-control" id="reg-email" required dir="ltr">
+        </div>
+        <div class="form-group">
+          <label>نام کاربری</label>
+          <input type="text" class="form-control" id="reg-username" required dir="ltr">
+        </div>
+        <div class="form-group">
+          <label>رمز عبور</label>
+          <input type="password" class="form-control" id="reg-password" required dir="ltr">
+        </div>
+        <div class="form-group">
+          <label>تکرار رمز عبور</label>
+          <input type="password" class="form-control" id="reg-password2" required dir="ltr">
+        </div>
+        <div class="form-group">
+          <label>کد امنیتی</label>
+          <div class="captcha-box">
+            <div id="register-captcha-svg"></div>
+            <button type="button" class="captcha-refresh" onclick="loadCaptcha('register')">&#8635;</button>
+          </div>
+          <input type="text" class="form-control" id="register-captcha" placeholder="کد امنیتی را وارد کنید" required dir="ltr">
+          <input type="hidden" id="register-captcha-id">
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="register-btn">عضویت</button>
+      </form>
+      <p class="text-center mt-2" style="font-size:13px;color:var(--text-secondary)">قبلاً عضو شدید؟ <a href="#" onclick="closeModal('registerModal');showLoginModal()">ورود</a></p>
+    </div>
+  </div>
+
+  <script src="/js/ir-app.js"></script>
+</body>
+</html>

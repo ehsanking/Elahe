@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CloudShield DNS - Enterprise DNS Security & Performance Provider">
+  <title id="site-title">CloudShield DNS - Enterprise DNS Solutions</title>
+  <link rel="stylesheet" href="/shared/css/common.css">
+  <link rel="stylesheet" href="/css/en-style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header" id="header">
+    <div class="container">
+      <nav class="nav">
+        <div class="nav-brand">
+          <div class="logo">
+            <svg width="36" height="36" viewBox="0 0 36 36">
+              <defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#3b82f6"/><stop offset="100%" style="stop-color:#10b981"/></linearGradient></defs>
+              <rect rx="8" width="36" height="36" fill="url(#lg)" opacity="0.1"/>
+              <path d="M10 18 C10 12, 18 8, 26 12 C30 14, 30 22, 26 24 C22 26, 14 26, 10 18Z" fill="url(#lg)" opacity="0.8"/>
+              <circle cx="18" cy="18" r="4" fill="white"/>
+            </svg>
+          </div>
+          <span class="brand-name" id="brand-name">CloudShield DNS</span>
+        </div>
+        <div class="nav-links" id="nav-links">
+          <a href="#home" class="nav-link active">Home</a>
+          <a href="#features" class="nav-link">Features</a>
+          <a href="#solutions" class="nav-link">Solutions</a>
+          <a href="#pricing" class="nav-link">Pricing</a>
+          <a href="#docs" class="nav-link">Documentation</a>
+          <a href="#about" class="nav-link">About</a>
+        </div>
+        <div class="nav-actions">
+          <button class="btn btn-outline btn-sm" onclick="showLoginModal()">Sign In</button>
+          <button class="btn btn-primary btn-sm" onclick="showRegisterModal()">Get Started</button>
+          <button class="mobile-menu-btn" onclick="toggleMenu()">&#9776;</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" id="home">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-tag">Enterprise-Grade DNS Security</div>
+        <h1>Secure, Fast, Reliable<br>DNS Infrastructure</h1>
+        <p class="hero-desc">CloudShield DNS provides enterprise-level DNS resolution with advanced security features, global anycast network, and 99.99% uptime guarantee. Protect your infrastructure from DNS-based threats.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary btn-lg" onclick="showRegisterModal()">Start Free Trial</button>
+          <button class="btn btn-outline btn-lg" onclick="scrollTo('#docs')">View Documentation</button>
+        </div>
+        <div class="hero-logos">
+          <span class="hero-logos-label">Trusted by leading organizations:</span>
+          <div class="logo-row">
+            <span class="fake-logo">TechCorp</span>
+            <span class="fake-logo">DataFlow Inc.</span>
+            <span class="fake-logo">NetSecure</span>
+            <span class="fake-logo">CloudBase</span>
+            <span class="fake-logo">InfraTech</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="container">
+      <h2 class="section-title">Why CloudShield DNS?</h2>
+      <p class="section-desc">Industry-leading DNS solutions for modern enterprises</p>
+      <div class="grid grid-3 gap-3 mt-4">
+        <div class="card feature-card">
+          <div class="feature-icon">&#128737;</div>
+          <h3>Threat Protection</h3>
+          <p>Advanced DNS-based threat intelligence blocks malware, phishing, and botnets at the DNS layer before they reach your network.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon">&#9889;</div>
+          <h3>Global Anycast Network</h3>
+          <p>30+ points of presence worldwide ensure sub-10ms DNS resolution from anywhere. Built on carrier-grade infrastructure.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon">&#128274;</div>
+          <h3>DNS-over-HTTPS/TLS</h3>
+          <p>Full support for DoH and DoT protocols. Encrypt your DNS queries to prevent eavesdropping and manipulation.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon">&#128200;</div>
+          <h3>Real-time Analytics</h3>
+          <p>Comprehensive dashboard with real-time query analytics, threat reports, and performance metrics for complete visibility.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon">&#128295;</div>
+          <h3>Easy Integration</h3>
+          <p>Simple API integration with existing infrastructure. SDKs for Python, Go, Node.js, and more. Full REST API documentation.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon">&#128640;</div>
+          <h3>99.99% Uptime SLA</h3>
+          <p>Enterprise SLA with guaranteed 99.99% uptime. Redundant infrastructure with automatic failover across regions.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solutions -->
+  <section class="section section-alt" id="solutions">
+    <div class="container">
+      <h2 class="section-title">Solutions</h2>
+      <p class="section-desc">Tailored DNS solutions for every use case</p>
+      <div class="grid grid-2 gap-3 mt-4">
+        <div class="card">
+          <h3>&#127970; Enterprise</h3>
+          <p class="mt-1">Custom DNS policies, content filtering, compliance controls, and dedicated account management for organizations of any size.</p>
+          <ul class="feature-list mt-2">
+            <li>Custom domain filtering rules</li>
+            <li>LDAP/Active Directory integration</li>
+            <li>Compliance reporting (GDPR, SOC2)</li>
+            <li>Dedicated support engineer</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>&#128187; Developers</h3>
+          <p class="mt-1">RESTful API access, webhook integrations, and programmable DNS policies for DevOps and infrastructure teams.</p>
+          <ul class="feature-list mt-2">
+            <li>Full REST API with SDKs</li>
+            <li>Terraform provider</li>
+            <li>CI/CD integration</li>
+            <li>Webhook notifications</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>&#128274; Security Teams</h3>
+          <p class="mt-1">DNS-layer threat intelligence, SIEM integration, and automated incident response for security operations centers.</p>
+          <ul class="feature-list mt-2">
+            <li>Threat intelligence feeds</li>
+            <li>SIEM/SOAR integration</li>
+            <li>Custom blocklists</li>
+            <li>Incident response automation</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>&#127760; ISPs & MSPs</h3>
+          <p class="mt-1">White-label DNS solutions with multi-tenant management, custom branding, and wholesale pricing for service providers.</p>
+          <ul class="feature-list mt-2">
+            <li>White-label deployment</li>
+            <li>Multi-tenant management</li>
+            <li>Wholesale pricing</li>
+            <li>Custom SLA options</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="section" id="pricing">
+    <div class="container">
+      <h2 class="section-title">Pricing Plans</h2>
+      <p class="section-desc">Flexible pricing for teams of all sizes</p>
+      <div class="grid grid-3 gap-3 mt-4">
+        <div class="card pricing-card">
+          <h3 class="pricing-name">Starter</h3>
+          <div class="pricing-price">Free</div>
+          <p class="pricing-desc">For personal use and small projects</p>
+          <ul class="pricing-features">
+            <li>&#10003; 300K queries/month</li>
+            <li>&#10003; Basic threat protection</li>
+            <li>&#10003; 2 DNS endpoints</li>
+            <li>&#10003; Community support</li>
+            <li>&#10007; No SLA guarantee</li>
+          </ul>
+          <button class="btn btn-outline" onclick="showRegisterModal()">Get Started</button>
+        </div>
+        <div class="card pricing-card pricing-featured">
+          <div class="pricing-badge">Most Popular</div>
+          <h3 class="pricing-name">Professional</h3>
+          <div class="pricing-price">$29<small>/mo</small></div>
+          <p class="pricing-desc">For growing teams and businesses</p>
+          <ul class="pricing-features">
+            <li>&#10003; Unlimited queries</li>
+            <li>&#10003; Advanced threat protection</li>
+            <li>&#10003; Global anycast network</li>
+            <li>&#10003; API access</li>
+            <li>&#10003; Email support (24h SLA)</li>
+            <li>&#10003; 99.9% uptime SLA</li>
+          </ul>
+          <button class="btn btn-primary" onclick="showRegisterModal()">Start Free Trial</button>
+        </div>
+        <div class="card pricing-card">
+          <h3 class="pricing-name">Enterprise</h3>
+          <div class="pricing-price">Custom</div>
+          <p class="pricing-desc">For large organizations</p>
+          <ul class="pricing-features">
+            <li>&#10003; Everything in Professional</li>
+            <li>&#10003; Dedicated infrastructure</li>
+            <li>&#10003; Custom policies & filtering</li>
+            <li>&#10003; SIEM integration</li>
+            <li>&#10003; Dedicated account manager</li>
+            <li>&#10003; 99.99% uptime SLA</li>
+          </ul>
+          <button class="btn btn-secondary" onclick="showRegisterModal()">Contact Sales</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Documentation -->
+  <section class="section section-alt" id="docs">
+    <div class="container">
+      <h2 class="section-title">Quick Start</h2>
+      <p class="section-desc">Get started in minutes with our DNS service</p>
+      <div class="card mt-4 code-block">
+        <h3>DNS Configuration</h3>
+        <div class="dns-config mt-2">
+          <div class="dns-row"><span class="dns-label">Primary DNS:</span><code>185.228.168.100</code><button class="btn btn-sm btn-outline" onclick="copyText('185.228.168.100')">Copy</button></div>
+          <div class="dns-row"><span class="dns-label">Secondary DNS:</span><code>185.228.169.100</code><button class="btn btn-sm btn-outline" onclick="copyText('185.228.169.100')">Copy</button></div>
+          <div class="dns-row"><span class="dns-label">DoH Endpoint:</span><code>https://dns.cloudshield.io/dns-query</code><button class="btn btn-sm btn-outline" onclick="copyText('https://dns.cloudshield.io/dns-query')">Copy</button></div>
+          <div class="dns-row"><span class="dns-label">DoT Hostname:</span><code>dns.cloudshield.io</code><button class="btn btn-sm btn-outline" onclick="copyText('dns.cloudshield.io')">Copy</button></div>
+        </div>
+      </div>
+      <div class="grid grid-3 gap-3 mt-3">
+        <div class="card"><h4>&#128218; API Reference</h4><p class="mt-1">Complete REST API documentation with examples in multiple languages.</p></div>
+        <div class="card"><h4>&#128295; SDKs & Libraries</h4><p class="mt-1">Official SDKs for Python, Go, Node.js, Java, and .NET.</p></div>
+        <div class="card"><h4>&#127891; Tutorials</h4><p class="mt-1">Step-by-step guides for common configurations and integrations.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="section" id="about">
+    <div class="container">
+      <h2 class="section-title">About CloudShield</h2>
+      <div class="card mt-4">
+        <p>CloudShield DNS was founded in 2019 by a team of network security experts with a vision to make enterprise-grade DNS security accessible to organizations of all sizes. Our global infrastructure processes billions of DNS queries daily, protecting networks across 150+ countries.</p>
+        <p class="mt-2">Headquartered in Frankfurt, Germany with offices in London and Singapore, our team of 80+ engineers and security researchers continuously innovate to stay ahead of emerging threats.</p>
+        <div class="grid grid-4 gap-2 mt-3 text-center">
+          <div><strong style="font-size:24px;color:var(--primary)">12B+</strong><br><small>Daily queries</small></div>
+          <div><strong style="font-size:24px;color:var(--primary)">150+</strong><br><small>Countries served</small></div>
+          <div><strong style="font-size:24px;color:var(--primary)">30+</strong><br><small>PoPs worldwide</small></div>
+          <div><strong style="font-size:24px;color:var(--primary)">99.99%</strong><br><small>Uptime SLA</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="grid grid-4 gap-3">
+        <div><h4>CloudShield DNS</h4><p class="footer-desc">Enterprise DNS security and performance for modern organizations.</p></div>
+        <div><h4>Product</h4><a href="#features">Features</a><a href="#solutions">Solutions</a><a href="#pricing">Pricing</a><a href="#">Changelog</a></div>
+        <div><h4>Resources</h4><a href="#docs">Documentation</a><a href="#">API Reference</a><a href="#">Blog</a><a href="#">Status</a></div>
+        <div><h4>Company</h4><a href="#about">About</a><a href="#">Careers</a><a href="#">Contact</a><a href="#">Privacy Policy</a></div>
+      </div>
+      <div class="footer-bottom mt-4">
+        <p>&copy; 2024 CloudShield DNS GmbH. All rights reserved. Registered in Frankfurt, Germany (HRB 123456).</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Login Modal -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal">
+      <div class="modal-header"><h3>Sign In</h3><button class="modal-close" onclick="closeModal('loginModal')">&times;</button></div>
+      <div id="login-error" class="alert alert-error" style="display:none"></div>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group"><label>Username or Email</label><input type="text" class="form-control" id="login-username" required></div>
+        <div class="form-group"><label>Password</label><input type="password" class="form-control" id="login-password" required></div>
+        <div class="form-group">
+          <label>Security Code</label>
+          <div class="captcha-box"><div id="login-captcha-svg"></div><button type="button" class="captcha-refresh" onclick="loadCaptcha('login')">&#8635;</button></div>
+          <input type="text" class="form-control" id="login-captcha" placeholder="Enter the code above" required>
+          <input type="hidden" id="login-captcha-id">
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="login-btn">Sign In</button>
+      </form>
+      <p class="text-center mt-2" style="font-size:13px;color:var(--text-secondary)">Don't have an account? <a href="#" onclick="closeModal('loginModal');showRegisterModal()">Sign Up</a></p>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal-overlay" id="registerModal">
+    <div class="modal">
+      <div class="modal-header"><h3>Create Account</h3><button class="modal-close" onclick="closeModal('registerModal')">&times;</button></div>
+      <div id="register-error" class="alert alert-error" style="display:none"></div>
+      <form onsubmit="handleRegister(event)">
+        <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="reg-name" required></div>
+        <div class="form-group"><label>Work Email</label><input type="email" class="form-control" id="reg-email" required></div>
+        <div class="form-group"><label>Username</label><input type="text" class="form-control" id="reg-username" required></div>
+        <div class="form-group"><label>Password</label><input type="password" class="form-control" id="reg-password" required></div>
+        <div class="form-group"><label>Confirm Password</label><input type="password" class="form-control" id="reg-password2" required></div>
+        <div class="form-group">
+          <label>Security Code</label>
+          <div class="captcha-box"><div id="register-captcha-svg"></div><button type="button" class="captcha-refresh" onclick="loadCaptcha('register')">&#8635;</button></div>
+          <input type="text" class="form-control" id="register-captcha" placeholder="Enter the code above" required>
+          <input type="hidden" id="register-captcha-id">
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="register-btn">Create Account</button>
+      </form>
+      <p class="text-center mt-2" style="font-size:13px;color:var(--text-secondary)">Already have an account? <a href="#" onclick="closeModal('registerModal');showLoginModal()">Sign In</a></p>
+    </div>
+  </div>
+
+  <script src="/js/en-app.js"></script>
+</body>
+</html>
