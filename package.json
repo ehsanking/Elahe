@@ -1,0 +1,35 @@
+{
+  "name": "elahe-panel",
+  "version": "0.0.3",
+  "description": "Elahe - Advanced Multi-Protocol Tunnel Management System",
+  "main": "src/core/server.js",
+  "scripts": {
+    "start": "node src/core/server.js",
+    "dev": "node --watch src/core/server.js",
+    "setup": "node scripts/setup.js",
+    "install-iran": "bash scripts/install-iran.sh",
+    "install-foreign": "bash scripts/install-foreign.sh",
+    "elahe": "bash scripts/elahe.sh",
+    "migrate": "node src/database/migrate.js"
+  },
+  "author": "EHSANKiNG",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "better-sqlite3": "^9.4.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.0",
+    "svg-captcha": "^1.4.0",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5",
+    "compression": "^1.7.4",
+    "express-rate-limit": "^7.1.5",
+    "cookie-parser": "^1.4.6",
+    "express-session": "^1.17.3",
+    "qrcode": "^1.5.3",
+    "node-cron": "^3.0.3",
+    "ws": "^8.16.0",
+    "axios": "^1.6.5"
+  }
+}
