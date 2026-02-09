@@ -226,7 +226,7 @@ footer{background:#1a1a2e;color:#aaa;padding:30px;text-align:center}
 
   /**
    * Start TrustTunnel
-   * In v0.0.3, we implement it as an abstraction layer over GOST/Chisel
+   * In v0.0.4, we implement it as an abstraction layer over GOST/Chisel
    * with HTTP/3 capabilities, since TrustTunnel is Elahe's custom protocol
    */
   async start(tunnelId, options) {

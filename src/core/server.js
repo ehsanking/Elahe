@@ -2,7 +2,7 @@
  * Elahe Panel - Main Server
  * Advanced Multi-Protocol Tunnel Management System
  * Developer: EHSANKiNG
- * Version: 0.0.3
+ * Version: 0.0.4
  */
 
 const express = require('express');
@@ -106,7 +106,7 @@ app.get('/api/settings/site', (req, res) => {
   res.json({
     mode,
     ...siteConfig,
-    version: req.siteSettings.version || '0.0.3',
+    version: req.siteSettings.version || '0.0.4',
   });
 });
 
@@ -316,7 +316,7 @@ if (sslInfo.available) {
 mainServer.listen(PORT, HOST, async () => {
   const protocol = sslInfo.available ? 'https' : 'http';
   
-  log.info(`Elahe Panel v0.0.3 started`, {
+  log.info(`Elahe Panel v0.0.4 started`, {
     mode: config.mode,
     protocol,
     address: `${protocol}://${HOST}:${PORT}`,

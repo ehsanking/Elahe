@@ -2,7 +2,7 @@
  * Elahe Panel - System Resource Monitor Service
  * Shows CPU, RAM, Disk, Network, Uptime to admin
  * Developer: EHSANKiNG
- * Version: 0.0.3
+ * Version: 0.0.4
  */
 
 const os = require('os');

@@ -1,380 +1,156 @@
-<div align="center">
-
 # Elahe Panel
 
-**Advanced Multi-Protocol Tunnel Management System**
+<div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)]()
-[![License](https://img.shields.io/badge/license-MIT-green.svg)]()
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)]()
-[![Developer](https://img.shields.io/badge/developer-EHSANKiNG-purple.svg)]()
+**سیستم مدیریت تانل چند پروتکلی پیشرفته**
 
-```
-  ______ _       _            _____                 _
- |  ____| |     | |          |  __ \               | |
- | |__  | | __ _| |__   ___  | |__) |_ _ _ __   ___| |
- |  __| | |/ _` | '_ \ / _ \ |  ___/ _` | '_ \ / _ \ |
- | |____| | (_| | | | |  __/ | |  | (_| | | | |  __/ |
- |______|_|\__,_|_| |_|\___| |_|   \__,_|_| |_|\___|_|
-```
+نسخه: 0.0.4 | توسعه‌دهنده: EHSANKiNG
+
+[English](#english) | [فارسی](#فارسی)
 
 </div>
 
 ---
 
-## Features
+## فارسی
 
-- **Multi-Protocol Support**: VLESS+Reality, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, OpenVPN
-- **Hybrid Config Models**: All combinations (WS, gRPC, TCP, QUIC) for each protocol
-- **Autopilot Tunnel Management**: Automatic best-tunnel selection every 10 minutes
-- **5 Tunnel Engines**: SSH, FRP, GOST, Chisel, TrustTunnel (HTTP/3)
-- **System Resource Monitoring**: CPU, RAM, Disk, Network, Bandwidth in admin panel
-- **Iran/Foreign Mode**: Separate deployment for edge and upstream servers
-- **Camouflage Website**: Fake DNS service site for Iran mode
-- **Domain Management**: Auto-subdomain generation, SSL, check-host.net integration
-- **Import/Export**: Marzban and 3x-ui compatible
-- **External Panel Support**: Connect to Marzban/3x-ui instances
-- **Subscription System**: Base64 links for V2rayNG, Hiddify, Streisand, etc.
+### معرفی
+
+**Elahe Panel** یک سیستم مدیریت تانل پیشرفته و چند پروتکلی است که برای مدیریت اتصالات شبکه‌ای امن طراحی شده است. این پنل از فناوری‌های روز دنیا برای ارائه سرویس‌های امن و پایدار استفاده می‌کند.
+
+### ویژگی‌ها
+
+- **پشتیبانی از پروتکل‌های متعدد**: VLESS-Reality, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, OpenVPN, TrustTunnel
+- **پروتکل‌های XTLS**: RPRX-Direct, Vision, REALITY
+- **سیستم اتوپایلوت**: انتخاب خودکار بهترین تانل هر 10 دقیقه
+- **مسیریابی GeoIP/GeoData**: ادغام با [Iran-v2ray-rules](https://github.com/chocolate4u/Iran-v2ray-rules) برای جلوگیری از ارسال ترافیک سایت‌های داخلی به خارج
+- **مدیریت هسته Xray/Sing-box**: نمایش نسخه‌ها، شروع/توقف/ریستارت، تشخیص تداخل پورت‌ها
+- **پشتیبانی WARP**: عبور از سایت‌ها با Cloudflare WARP
+- **مسدودسازی محتوا**: مدیریت و شناسایی ترافیک BitTorrent، پورنوگرافی و قمار
+- **مدیریت ساب‌دامین و SSL**: صدور گواهی SSL برای ساب‌دامین‌ها از داخل پنل
+- **پنل کاملاً فارسی**: رابط کاربری بومی‌سازی شده
+- **نمایش کاربران آنلاین**: مشاهده وضعیت آنلاین کاربران برای مدیر
+- **API امن**: کلیدهای API با قابلیت تنظیم دسترسی
+- **کانفیگ پورت سفارشی**: امکان تنظیم دستی پورت در حالت ایران
+- **پشتیبانی از حالت دوگانه**: ایران (استتار) و خارج (سرور DNS)
+- **سازگاری با Marzban/3x-ui**: ورود/خروج کاربران
+- **مانیتورینگ سیستم**: نمایش CPU، RAM، دیسک، پهنای باند
+
+### پیش‌نیازها
+
+- سرور لینوکس (Ubuntu 20+ / Debian 11+ / CentOS 8+)
+- Node.js 18+
+- حداقل 512 مگابایت RAM
+- دسترسی root
+
+### نصب سریع
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/ehsanking/Elahe/main/scripts/elahe.sh) install
+```
+
+### دستورات CLI
+
+```bash
+elahe install          # نصب
+elahe update           # بروزرسانی
+elahe set-domain       # تنظیم دامنه و SSL
+elahe status           # وضعیت سرویس
+elahe restart          # ریستارت سرویس
+elahe uninstall        # حذف
+```
+
+### منابع GeoIP/GeoData
+
+این پروژه از [Iran-v2ray-rules](https://github.com/chocolate4u/Iran-v2ray-rules) (توسعه‌دهنده: chocolate4u) برای قوانین مسیریابی GeoIP/GeoSite استفاده می‌کند. این مجموعه قوانین شامل:
+
+- آدرس‌های IP ایران (برای مسیریابی مستقیم)
+- سایت‌های ایرانی (برای جلوگیری از عبور از پروکسی)
+- فیلتر تبلیغات و بدافزار
+- قابلیت بروزرسانی خودکار از پنل
+
+### پروتکل‌های پشتیبانی شده
+
+| پروتکل | پورت پیش‌فرض | توضیحات |
+|---------|-------------|---------|
+| VLESS-Reality | 443 | XTLS با REALITY |
+| TrustTunnel | 8443 | HTTP/3 (QUIC) |
+| WireGuard | 1414, 53133 | همیشه فعال |
+| OpenVPN | 110, 510 | همیشه فعال |
+| VMess | 8080 | - |
+| Trojan | 8443 | - |
+| Shadowsocks | 8388 | - |
+| Hysteria2 | 4433 | - |
 
 ---
 
-## Quick Install (One-Liner)
+## English
 
-### Iran Server (Edge)
+### Introduction
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ehsanking/Elahe/main/scripts/elahe.sh) install
-```
+**Elahe Panel** is an advanced multi-protocol tunnel management system designed for secure network connection management.
 
-### Foreign Server (Upstream)
+### Features
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ehsanking/Elahe/main/scripts/elahe.sh) install
-```
+- Multi-protocol support (VLESS-Reality, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, OpenVPN)
+- XTLS native protocols: RPRX-Direct, Vision, REALITY
+- Autopilot tunnel management
+- GeoIP/GeoData routing with [Iran-v2ray-rules](https://github.com/chocolate4u/Iran-v2ray-rules) integration
+- Xray/Sing-box core management with version control
+- Cloudflare WARP support
+- Content blocking (BitTorrent, Porn, Gambling)
+- Subdomain management with SSL certificate issuance
+- Full Persian/Farsi admin panel localization
+- Online user monitoring
+- Secure API with key management
+- Custom port configuration
+- Dual mode: Iran (camouflage) and Foreign (DNS provider)
+- Marzban/3x-ui compatibility
+- System monitoring (CPU, RAM, Disk, Bandwidth)
 
-> Select **option 2** (Foreign Server) when prompted.
-
-### Interactive Management Menu
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ehsanking/Elahe/main/scripts/elahe.sh)
-```
-
-### Update to Latest Version
-
-```bash
-elahe update
-```
-
-> The updater automatically detects the latest release from GitHub Releases and downloads it.
-> Existing data, configuration, certificates, and logs are preserved during updates.
-
----
-
-## Manual Installation
-
-### Prerequisites
-
-- **OS**: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / AlmaLinux 8+
-- **CPU**: 1 core minimum (2+ recommended)
-- **RAM**: 512MB minimum (1GB+ recommended)
-- **Node.js**: 18.x or 20.x
-- **Disk**: 1GB free space
-
-### Step 1: Install Dependencies
+### Quick Install
 
 ```bash
-# Update system
-apt-get update -y && apt-get upgrade -y
-
-# Install required packages
-apt-get install -y curl wget git unzip build-essential python3 jq openssl ca-certificates
-
-# Install Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-
-# Verify
-node -v && npm -v
-```
-
-### Step 2: Download / Clone
-
-**Option A: Download latest release (recommended)**
-```bash
-# Get latest release tag
-LATEST=$(curl -s https://api.github.com/repos/ehsanking/Elahe/releases/latest | grep tag_name | cut -d'"' -f4)
-curl -sL "https://api.github.com/repos/ehsanking/Elahe/tarball/${LATEST}" -o /tmp/elahe.tar.gz
-mkdir -p /opt/elahe && tar -xzf /tmp/elahe.tar.gz -C /opt/elahe --strip-components=1
-cd /opt/elahe
-```
-
-**Option B: Clone from Git**
-```bash
-git clone https://github.com/ehsanking/Elahe.git /opt/elahe
-cd /opt/elahe
-```
-
-> **Note**: If `/opt/elahe` already exists from a previous installation, back up your data first:
-> ```bash
-> cp -a /opt/elahe/data /tmp/elahe-data-backup
-> cp -a /opt/elahe/.env /tmp/elahe-env-backup
-> rm -rf /opt/elahe
-> ```
-
-### Step 3: Install Node.js Dependencies
-
-```bash
-npm install --production
-```
-
-> **Self-hosted packages**: If you cannot access npm registry, extract the bundled `packages/node_modules.tar.gz`:
-> ```bash
-> tar -xzf packages/node_modules.tar.gz -C /opt/elahe/
-> ```
-
-### Step 4: Configure
-
-```bash
-# Create .env file
-cat > /opt/elahe/.env << 'EOF'
-# Mode: iran or foreign
-ELAHE_MODE=iran
-
-# Server
-PORT=3000
-HOST=0.0.0.0
-
-# Admin Credentials
-ADMIN_USER=admin
-ADMIN_PASS=CHANGE_ME_TO_STRONG_PASSWORD
-
-# Core Engine: xray or singbox
-CORE_ENGINE=xray
-
-# Security (auto-generated if empty)
-SESSION_SECRET=
-JWT_SECRET=
-
-# Database
-DB_PATH=/opt/elahe/data/elahe.db
-
-# Logging
-LOG_LEVEL=info
-EOF
-
-# Set permissions
-chmod 600 /opt/elahe/.env
-```
-
-### Step 5: Initialize Database
-
-```bash
-cd /opt/elahe
-node -e "require('./src/database/migrate').migrate()"
-```
-
-### Step 6: Create Systemd Service
-
-```bash
-cat > /etc/systemd/system/elahe.service << 'EOF'
-[Unit]
-Description=Elahe Panel
-After=network.target
-Documentation=https://github.com/ehsanking/Elahe
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/elahe
-ExecStart=/usr/bin/node src/core/server.js
-Restart=always
-RestartSec=5
-Environment=NODE_ENV=production
-LimitNOFILE=65535
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable elahe
-systemctl start elahe
-```
-
-### Step 7: Open Firewall Ports
-
-```bash
-# Panel
-ufw allow 3000/tcp
-
-# VLESS/Reality (Port 443)
-ufw allow 443/tcp
-
-# TrustTunnel / Trojan (Port 8443)
-ufw allow 8443/tcp
-
-# VMess (Port 8080)
-ufw allow 8080/tcp
-
-# OpenVPN (Ports 110, 510)
-ufw allow 110/tcp
-ufw allow 510/tcp
-
-# WireGuard (Ports 1414, 53133)
-ufw allow 1414/udp
-ufw allow 53133/udp
-
-# Shadowsocks (Port 8388)
-ufw allow 8388/tcp
-
-# Hysteria2 (Port 4433)
-ufw allow 4433/udp
-```
-
-### Step 8: Access Panel
-
-```
-Panel:  http://YOUR_IP:3000
-Admin:  http://YOUR_IP:3000/admin
+bash <(curl -s https://raw.githubusercontent.com/ehsanking/Elahe/main/scripts/elahe.sh) install
 ```
 
 ---
 
-## CLI Management
+## سلب مسئولیت قانونی / Legal Disclaimer
 
-After installation, use the `elahe` command:
+### فارسی
 
-```bash
-elahe                  # Interactive menu
-elahe status           # Check panel status
-elahe restart          # Restart panel
-elahe logs             # View live logs
-elahe set-domain       # Configure domain & SSL
-elahe change-user      # Change admin credentials
-elahe update           # Update to latest version
-elahe uninstall        # Remove panel
-```
+**هشدار مهم:** این نرم‌افزار صرفاً برای اهداف آموزشی و تحقیقاتی توسعه داده شده است.
 
----
+1. **استفاده قانونی**: کاربران موظفند از این نرم‌افزار تنها در چارچوب قوانین کشور محل سکونت خود استفاده کنند.
+2. **عدم مسئولیت**: توسعه‌دهندگان هیچ‌گونه مسئولیتی در قبال سوء استفاده از این نرم‌افزار ندارند.
+3. **حریم خصوصی**: این نرم‌افزار هیچ اطلاعات شخصی کاربران را جمع‌آوری یا به اشخاص ثالث ارسال نمی‌کند.
+4. **عدم تضمین**: این نرم‌افزار «همانطور که هست» ارائه می‌شود و هیچ تضمینی برای عملکرد صحیح آن وجود ندارد.
+5. **محتوای غیرقانونی**: استفاده از این نرم‌افزار برای دسترسی به محتوای غیرقانونی، نقض حق کپی‌رایت، یا هرگونه فعالیت مجرمانه اکیداً ممنوع است.
+6. **ریسک استفاده**: استفاده از این نرم‌افزار به عهده خود کاربر است و تمامی ریسک‌های ناشی از استفاده بر عهده کاربر می‌باشد.
 
-## Supported Protocols & Config Models
+### English
 
-| Protocol | Transport | Port | Status |
-|----------|-----------|------|--------|
-| VLESS + Reality | TCP (XTLS-Vision) | 443 | Primary |
-| VLESS + WS + TLS | WebSocket | 443 | Active |
-| VLESS + gRPC + TLS | gRPC | 443 | Active |
-| VMess + WS + TLS | WebSocket | 8080 | Active |
-| VMess + gRPC + TLS | gRPC | 8080 | Active |
-| VMess + TCP | TCP | 8080 | Active |
-| Trojan + TCP + TLS | TCP | 8443 | Active |
-| Trojan + WS + TLS | WebSocket | 8443 | Active |
-| Trojan + gRPC + TLS | gRPC | 8443 | Active |
-| Shadowsocks AEAD | TCP | 8388 | Active |
-| Shadowsocks 2022 | TCP | 8388 | Active |
-| **Hysteria2** | **QUIC** | **4433** | **Active** |
-| **Hysteria2 + Obfs** | **QUIC + Salamander** | **4433** | **Active** |
-| WireGuard | UDP | 1414, 53133 | Always On |
-| OpenVPN | TCP | 110, 510 | Always On |
-| TrustTunnel (HTTP/3) | QUIC/HTTP3 | 8443 | Always On |
+**IMPORTANT NOTICE:** This software is developed solely for educational and research purposes.
+
+1. **Legal Use**: Users are obligated to use this software only within the legal framework of their country of residence.
+2. **No Liability**: The developers bear no responsibility for any misuse of this software.
+3. **Privacy**: This software does not collect or transmit any personal user data to third parties.
+4. **No Warranty**: This software is provided "as is" without any warranty of any kind, express or implied.
+5. **Illegal Content**: Using this software to access illegal content, violate copyright, or engage in any criminal activity is strictly prohibited.
+6. **Use at Your Own Risk**: The use of this software is at the user's own risk, and all risks arising from its use are borne by the user.
+7. **Compliance**: Users must comply with all applicable local, state, national, and international laws and regulations.
 
 ---
 
-## Tunnel Engines (Autopilot)
+## مجوز / License
 
-| Engine | Transport | Role | Description |
-|--------|-----------|------|-------------|
-| SSH | TCP | Backup | Encrypted port forwarding |
-| FRP | TCP+TLS | Backup | Fast Reverse Proxy |
-| GOST | TLS/QUIC | Primary (443) | GO Simple Tunnel |
-| Chisel | HTTPS/WS | Backup | HTTP tunnel with TLS |
-| TrustTunnel | HTTP/3/QUIC | Secondary (8443) | Camouflage & traffic shaping |
-
-**Autopilot** tests all engines every 10 minutes and automatically selects the best one for port 443.
+MIT License - Copyright (c) 2024 EHSANKiNG
 
 ---
 
-## Port Allocation
+<div align="center">
+  
+**Elahe Panel v0.0.4** | توسعه‌دهنده: [EHSANKiNG](https://github.com/ehsanking)
 
-```
-Port 443   -> VLESS+Reality / Auto-selected tunnel (SSH/FRP/GOST/Chisel)
-Port 4433  -> Hysteria2 (UDP/QUIC)
-Port 8080  -> VMess
-Port 8388  -> Shadowsocks
-Port 8443  -> TrustTunnel (HTTP/3) / Trojan
-Port 110   -> OpenVPN (always active)
-Port 510   -> OpenVPN (always active)
-Port 1414  -> WireGuard (always active)
-Port 53133 -> WireGuard (always active)
-```
-
----
-
-## System Requirements
-
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| CPU | 1 core | 2+ cores |
-| RAM | 512 MB | 1 GB+ |
-| Disk | 1 GB | 5 GB+ |
-| OS | Ubuntu 20.04 | Ubuntu 22.04+ |
-| Node.js | 18.x | 20.x |
-
----
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/login` | POST | Admin login |
-| `/api/auth/captcha` | GET | Get captcha |
-| `/api/admin/dashboard` | GET | Dashboard data |
-| `/api/admin/system/resources` | GET | System resource monitoring |
-| `/api/admin/users` | GET/POST | User management |
-| `/api/admin/servers` | GET/POST | Server management |
-| `/api/admin/tunnels` | GET/POST | Tunnel management |
-| `/api/admin/autopilot/status` | GET | Autopilot status |
-| `/api/admin/domains` | GET/POST | Domain management |
-| `/api/admin/settings` | GET/PUT | Panel settings |
-| `/sub/:token` | GET | Subscription (base64) |
-| `/sub/info/:token` | GET | Subscription info page |
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ELAHE_MODE` | `iran` | Server mode: `iran` or `foreign` |
-| `PORT` | `3000` | Panel port |
-| `ADMIN_USER` | `admin` | Admin username |
-| `ADMIN_PASS` | `admin` | Admin password |
-| `CORE_ENGINE` | `xray` | Core: `xray` or `singbox` |
-| `DB_PATH` | `data/elahe.db` | Database path |
-| `SESSION_SECRET` | auto | Session encryption key |
-| `JWT_SECRET` | auto | JWT signing key |
-
----
-
-## Compatible Client Apps
-
-| Platform | Apps |
-|----------|------|
-| Android | V2rayNG, NekoBox, Hiddify, Streisand |
-| iOS | Streisand, V2Box, Shadowrocket |
-| Windows | V2rayN, NekoRay, Hiddify |
-| macOS | V2rayU, Hiddify |
-| Linux | NekoRay, Hiddify |
-
----
-
-## Developer
-
-**EHSANKiNG**
-
----
-
-## License
-
-MIT License - See [LICENSE](LICENSE) for details.
+</div>

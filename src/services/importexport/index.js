@@ -31,7 +31,7 @@ class ImportExportService {
     // Elahe native format
     return {
       format: 'elahe',
-      version: '0.0.3',
+      version: '0.0.4',
       exportedAt: new Date().toISOString(),
       count: users.length,
       users: users.map(u => ({
@@ -332,7 +332,7 @@ class ImportExportService {
     
     return {
       format: 'elahe',
-      version: '0.0.3',
+      version: '0.0.4',
       exportedAt: new Date().toISOString(),
       settings: settings.reduce((obj, s) => { obj[s.key] = s.value; return obj; }, {}),
       servers: servers.map(s => ({
@@ -401,7 +401,7 @@ class ImportExportService {
   static fullBackup() {
     return {
       format: 'elahe-full',
-      version: '0.0.3',
+      version: '0.0.4',
       exportedAt: new Date().toISOString(),
       checksum: crypto.randomBytes(16).toString('hex'),
       users: this.exportUsers().users,

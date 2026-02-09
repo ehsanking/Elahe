@@ -18,7 +18,7 @@
  *   - TrustTunnel (HTTP/3)
  *
  * Developer: EHSANKiNG
- * Version: 0.0.3
+ * Version: 0.0.4
  */
 
 const { v4: uuidv4 } = require('uuid');

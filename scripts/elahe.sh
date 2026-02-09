@@ -2,12 +2,12 @@
 # ══════════════════════════════════════════════════════════════
 # Elahe Panel - Unified Installer & Management CLI
 # Developer: EHSANKiNG
-# Version: 0.0.3
+# Version: 0.0.4
 # ══════════════════════════════════════════════════════════════
 
 set -euo pipefail
 
-VERSION="0.0.3"
+VERSION="0.0.4"
 INSTALL_DIR="/opt/elahe"
 DATA_DIR="$INSTALL_DIR/data"
 CERTS_DIR="$INSTALL_DIR/certs"
@@ -647,40 +647,12 @@ setup_domain() {
     setup_ssl_main "$MAIN_DOMAIN"
   fi
   
-  # ── Step 2: Generate subdomains ──
-  generate_subdomains "$MAIN_DOMAIN" "$mode"
-  
-  # ── Step 3: Ask user to set DNS, then optionally verify & get SSL for subdomains ──
+  # Note: Subdomain generation has been moved to the admin panel.
+  # Users can manage subdomains and their SSL from the web interface.
   echo ""
-  echo -e "${WHITE}══════════════════════════════════════════════════════════${NC}"
-  echo -e "${YELLOW}  IMPORTANT: Before getting SSL for subdomains, you must"
-  echo -e "  first create DNS A records in your DNS panel.${NC}"
+  log_info "Subdomain management is available in the admin panel at:"
+  echo -e "  ${CYAN}https://${MAIN_DOMAIN}/admin -> Subdomains${NC}"
   echo ""
-  echo -e "  ${WHITE}For each subdomain above, create an A record pointing to:${NC}"
-  echo -e "  ${GREEN}${SERVER_IP}${NC}"
-  echo ""
-  echo -e "  ${WHITE}Example DNS records:${NC}"
-  if [ -f "$DATA_DIR/subdomains.txt" ]; then
-    head -3 "$DATA_DIR/subdomains.txt" | while IFS= read -r sub; do
-      echo -e "    ${CYAN}${sub}${NC}  ->  A  ->  ${GREEN}${SERVER_IP}${NC}"
-    done
-    echo -e "    ${CYAN}...${NC}"
-  fi
-  echo -e "${WHITE}══════════════════════════════════════════════════════════${NC}"
-  echo ""
-  
-  if ask_yn "Have you already set DNS records for the subdomains?" "n"; then
-    # User says they set DNS - verify and get SSL
-    verify_and_ssl_subdomains "$MAIN_DOMAIN"
-  else
-    echo ""
-    log_info "No problem! You can get SSL for subdomains later by running:"
-    echo -e "  ${CYAN}elahe set-domain${NC}"
-    echo ""
-    log_info "Or manually request SSL after setting DNS records:"
-    echo -e "  ${CYAN}certbot certonly --standalone -d sub1.${MAIN_DOMAIN} -d sub2.${MAIN_DOMAIN} ...${NC}"
-    echo ""
-  fi
   
   # Save domain config
   if [ -f "$ENV_FILE" ]; then

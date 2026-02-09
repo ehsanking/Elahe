@@ -1,7 +1,7 @@
 #!/bin/bash
 # Elahe Panel - Foreign Server Installation Script
 # Developer: EHSANKiNG
-# Version: 0.0.3
+# Version: 0.0.4
 
 set -e
 
@@ -18,7 +18,7 @@ GITHUB_API="https://api.github.com/repos/ehsanking/Elahe"
 echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════════╗"
 echo "║     Elahe Panel - Foreign Server Setup       ║"
-echo "║     Version: 0.0.3                           ║"
+echo "║     Version: 0.0.4                           ║"
 echo "║     Developer: EHSANKiNG                      ║"
 echo "╚══════════════════════════════════════════════╝"
 echo -e "${NC}"

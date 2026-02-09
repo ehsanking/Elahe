@@ -1,12 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Elahe Panel - Admin Dashboard</title>
+  <title>Elahe Panel - پنل مدیریت</title>
   <link rel="stylesheet" href="/shared/css/common.css">
   <link rel="stylesheet" href="/admin/css/admin.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Vazirmatn', system-ui, sans-serif !important; direction: rtl; }
+    .sidebar { right: 0; left: auto; }
+    .main-content { margin-right: 260px; margin-left: 0; }
+    .server-type { right: auto; left: 16px; }
+    .topbar-right { margin-right: auto; margin-left: 0; }
+    .sidebar-nav { text-align: right; }
+    .sidebar-link { flex-direction: row-reverse; }
+    .sidebar-icon { text-align: center; }
+    .stat-card { flex-direction: row-reverse; }
+    .user-field { flex-direction: row-reverse; }
+    .modal-title { flex-direction: row-reverse; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-right: 0; }
+    }
+    .tab-bar { display: flex; gap: 4px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab-btn { padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 13px; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: inherit; transition: all 0.2s; }
+    .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
+    .tab-btn:hover { color: #1e40af; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 2px; }
+    .tag-green { background: #dcfce7; color: #166534; }
+    .tag-red { background: #fee2e2; color: #991b1b; }
+    .tag-blue { background: #dbeafe; color: #1e40af; }
+    .tag-yellow { background: #fef3c7; color: #92400e; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; border-radius: 24px; transition: .3s; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s; }
+    input:checked + .slider { background-color: #22c55e; }
+    input:checked + .slider:before { transform: translateX(20px); }
+    .log-box { background: #0f172a; color: #94a3b8; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; direction: ltr; text-align: left; }
+  </style>
 </head>
 <body>
   <div class="admin-layout" id="app" style="display:none">
@@ -15,40 +49,58 @@
       <div class="sidebar-header">
         <div class="sidebar-logo">&#11042;</div>
         <span class="sidebar-title">Elahe Panel</span>
-        <span class="sidebar-version">v0.0.3</span>
+        <span class="sidebar-version">v0.0.4</span>
       </div>
       <nav class="sidebar-nav">
         <a class="sidebar-link active" data-page="dashboard" onclick="navigate('dashboard')">
-          <span class="sidebar-icon">&#128200;</span>Dashboard
+          <span>داشبورد</span><span class="sidebar-icon">&#128200;</span>
         </a>
         <a class="sidebar-link" data-page="users" onclick="navigate('users')" id="nav-users">
-          <span class="sidebar-icon">&#128100;</span>Users
+          <span>کاربران</span><span class="sidebar-icon">&#128100;</span>
         </a>
         <a class="sidebar-link" data-page="servers" onclick="navigate('servers')">
-          <span class="sidebar-icon">&#128421;</span>Servers
+          <span>سرورها</span><span class="sidebar-icon">&#128421;</span>
         </a>
         <a class="sidebar-link" data-page="tunnels" onclick="navigate('tunnels')">
-          <span class="sidebar-icon">&#128268;</span>Tunnels
+          <span>تانل‌ها</span><span class="sidebar-icon">&#128268;</span>
         </a>
         <a class="sidebar-link" data-page="autopilot" onclick="navigate('autopilot')">
-          <span class="sidebar-icon">&#9889;</span>Autopilot
+          <span>اتوپایلوت</span><span class="sidebar-icon">&#9889;</span>
+        </a>
+        <a class="sidebar-link" data-page="georouting" onclick="navigate('georouting')">
+          <span>مسیریابی GeoIP</span><span class="sidebar-icon">&#127757;</span>
+        </a>
+        <a class="sidebar-link" data-page="core" onclick="navigate('core')">
+          <span>مدیریت هسته</span><span class="sidebar-icon">&#9881;</span>
+        </a>
+        <a class="sidebar-link" data-page="warp" onclick="navigate('warp')">
+          <span>WARP</span><span class="sidebar-icon">&#9729;</span>
+        </a>
+        <a class="sidebar-link" data-page="contentblock" onclick="navigate('contentblock')">
+          <span>مسدودسازی محتوا</span><span class="sidebar-icon">&#128683;</span>
+        </a>
+        <a class="sidebar-link" data-page="subdomains" onclick="navigate('subdomains')">
+          <span>ساب‌دامین‌ها</span><span class="sidebar-icon">&#127760;</span>
         </a>
         <a class="sidebar-link" data-page="domains" onclick="navigate('domains')">
-          <span class="sidebar-icon">&#127760;</span>Domains
+          <span>دامنه‌ها</span><span class="sidebar-icon">&#128279;</span>
         </a>
         <a class="sidebar-link" data-page="external-panels" onclick="navigate('external-panels')">
-          <span class="sidebar-icon">&#128279;</span>External Panels
+          <span>پنل‌های خارجی</span><span class="sidebar-icon">&#128279;</span>
         </a>
         <a class="sidebar-link" data-page="importexport" onclick="navigate('importexport')" id="nav-importexport">
-          <span class="sidebar-icon">&#128229;</span>Import/Export
+          <span>ورود/خروج داده</span><span class="sidebar-icon">&#128229;</span>
+        </a>
+        <a class="sidebar-link" data-page="apikeys" onclick="navigate('apikeys')">
+          <span>کلیدهای API</span><span class="sidebar-icon">&#128273;</span>
         </a>
         <a class="sidebar-link" data-page="settings" onclick="navigate('settings')">
-          <span class="sidebar-icon">&#9881;</span>Settings
+          <span>تنظیمات</span><span class="sidebar-icon">&#9881;</span>
         </a>
       </nav>
       <div class="sidebar-footer">
         <div style="padding:4px 12px;font-size:11px;color:#94a3b8;margin-bottom:4px" id="mode-badge"></div>
-        <button class="btn btn-sm btn-danger" onclick="logout()" style="width:100%">Logout</button>
+        <button class="btn btn-sm btn-danger" onclick="logout()" style="width:100%">خروج</button>
       </div>
     </aside>
 
@@ -56,66 +108,43 @@
     <main class="main-content">
       <header class="topbar">
         <button class="topbar-menu" onclick="toggleSidebar()">&#9776;</button>
-        <h2 id="page-title">Dashboard</h2>
+        <h2 id="page-title">داشبورد</h2>
         <div class="topbar-right">
-          <span id="admin-name">Admin</span>
+          <span id="online-badge" class="badge badge-success" style="margin-left:8px;font-size:11px"></span>
+          <span id="admin-name">مدیر</span>
         </div>
       </header>
 
       <!-- Dashboard Page -->
       <div class="page" id="page-dashboard">
         <div class="grid grid-4 gap-3 mb-3">
-          <div class="stat-card"><div class="stat-icon stat-blue">&#128100;</div><div><div class="stat-value" id="stat-users-total">-</div><div class="stat-label">Total Users</div></div></div>
-          <div class="stat-card"><div class="stat-icon stat-green">&#9889;</div><div><div class="stat-value" id="stat-users-active">-</div><div class="stat-label">Active Users</div></div></div>
-          <div class="stat-card"><div class="stat-icon stat-purple">&#128421;</div><div><div class="stat-value" id="stat-servers-total">-</div><div class="stat-label">Servers</div></div></div>
-          <div class="stat-card"><div class="stat-icon stat-orange">&#128268;</div><div><div class="stat-value" id="stat-tunnels-active">-</div><div class="stat-label">Active Tunnels</div></div></div>
+          <div class="stat-card"><div><div class="stat-value" id="stat-users-total">-</div><div class="stat-label">کل کاربران</div></div><div class="stat-icon stat-blue">&#128100;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="stat-users-active">-</div><div class="stat-label">کاربران فعال</div></div><div class="stat-icon stat-green">&#9889;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="stat-servers-total">-</div><div class="stat-label">سرورها</div></div><div class="stat-icon stat-purple">&#128421;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="stat-tunnels-active">-</div><div class="stat-label">تانل‌های فعال</div></div><div class="stat-icon stat-orange">&#128268;</div></div>
         </div>
         <div class="grid grid-2 gap-3">
-          <div class="card">
-            <div class="card-header">User Statistics</div>
-            <div id="user-stats-detail">Loading...</div>
-          </div>
-          <div class="card">
-            <div class="card-header">Server Status</div>
-            <div id="server-stats-detail">Loading...</div>
-          </div>
+          <div class="card"><div class="card-header">آمار کاربران</div><div id="user-stats-detail">در حال بارگذاری...</div></div>
+          <div class="card"><div class="card-header">وضعیت سرورها</div><div id="server-stats-detail">در حال بارگذاری...</div></div>
         </div>
         <div class="grid grid-2 gap-3 mt-3">
-          <div class="card">
-            <div class="card-header">Autopilot Status</div>
-            <div id="autopilot-dashboard-detail">Loading...</div>
-          </div>
-          <div class="card">
-            <div class="card-header">Panel Mode</div>
-            <div id="panel-mode-detail">Loading...</div>
-          </div>
+          <div class="card"><div class="card-header">وضعیت اتوپایلوت</div><div id="autopilot-dashboard-detail">در حال بارگذاری...</div></div>
+          <div class="card"><div class="card-header">اطلاعات پنل</div><div id="panel-mode-detail">در حال بارگذاری...</div></div>
         </div>
-
-        <!-- System Resources Section -->
         <div class="card mt-3">
-          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-            System Resources
-            <button class="btn btn-sm btn-outline" onclick="loadSystemResources()">&#8635; Refresh</button>
-          </div>
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">منابع سیستم<button class="btn btn-sm btn-outline" onclick="loadSystemResources()">&#8635; بروزرسانی</button></div>
           <div id="system-resources">
             <div class="grid grid-4 gap-2 mt-2">
-              <div class="stat-card"><div class="stat-icon" style="background:#dbeafe;color:#2563eb">&#128187;</div><div><div class="stat-value" id="res-cpu">-</div><div class="stat-label">CPU Usage</div></div></div>
-              <div class="stat-card"><div class="stat-icon" style="background:#fce7f3;color:#db2777">&#128202;</div><div><div class="stat-value" id="res-ram">-</div><div class="stat-label">RAM Usage</div></div></div>
-              <div class="stat-card"><div class="stat-icon" style="background:#d1fae5;color:#059669">&#128190;</div><div><div class="stat-value" id="res-disk">-</div><div class="stat-label">Disk Usage</div></div></div>
-              <div class="stat-card"><div class="stat-icon" style="background:#fef3c7;color:#d97706">&#9201;</div><div><div class="stat-value" id="res-uptime">-</div><div class="stat-label">Uptime</div></div></div>
+              <div class="stat-card"><div><div class="stat-value" id="res-cpu">-</div><div class="stat-label">مصرف CPU</div></div><div class="stat-icon" style="background:#dbeafe;color:#2563eb">&#128187;</div></div>
+              <div class="stat-card"><div><div class="stat-value" id="res-ram">-</div><div class="stat-label">مصرف RAM</div></div><div class="stat-icon" style="background:#fce7f3;color:#db2777">&#128202;</div></div>
+              <div class="stat-card"><div><div class="stat-value" id="res-disk">-</div><div class="stat-label">مصرف دیسک</div></div><div class="stat-icon" style="background:#d1fae5;color:#059669">&#128190;</div></div>
+              <div class="stat-card"><div><div class="stat-value" id="res-uptime">-</div><div class="stat-label">آپ‌تایم</div></div><div class="stat-icon" style="background:#fef3c7;color:#d97706">&#9201;</div></div>
             </div>
             <div class="grid grid-2 gap-2 mt-2">
-              <div id="res-detail-left" style="font-size:13px;color:#64748b;line-height:2"></div>
-              <div id="res-detail-right" style="font-size:13px;color:#64748b;line-height:2"></div>
+              <div id="res-detail-left" style="font-size:13px;color:#64748b;line-height:2;direction:ltr;text-align:left"></div>
+              <div id="res-detail-right" style="font-size:13px;color:#64748b;line-height:2;direction:ltr;text-align:left"></div>
             </div>
           </div>
-        </div>
-
-        <!-- Bandwidth Summary -->
-        <div class="grid grid-3 gap-3 mt-3">
-          <div class="stat-card"><div class="stat-icon" style="background:#ede9fe;color:#7c3aed">&#128228;</div><div><div class="stat-value" id="bw-today">-</div><div class="stat-label">Today Bandwidth</div></div></div>
-          <div class="stat-card"><div class="stat-icon" style="background:#fce7f3;color:#be185d">&#128229;</div><div><div class="stat-value" id="bw-total">-</div><div class="stat-label">Total Bandwidth</div></div></div>
-          <div class="stat-card"><div class="stat-icon" style="background:#dbeafe;color:#1d4ed8">&#128279;</div><div><div class="stat-value" id="bw-connections">-</div><div class="stat-label">Active Connections</div></div></div>
         </div>
       </div>
 
@@ -123,28 +152,28 @@
       <div class="page" id="page-users" style="display:none">
         <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
           <div class="flex gap-2">
-            <input type="text" class="form-control" id="user-search" placeholder="Search users..." style="width:250px" oninput="debounceSearchUsers()">
+            <input type="text" class="form-control" id="user-search" placeholder="جستجوی کاربر..." style="width:250px" oninput="debounceSearchUsers()">
             <select class="form-control" id="user-filter-status" style="width:150px" onchange="loadUsers()">
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="expired">Expired</option>
-              <option value="limited">Limited</option>
-              <option value="disabled">Disabled</option>
+              <option value="">همه وضعیت‌ها</option>
+              <option value="active">فعال</option>
+              <option value="expired">منقضی</option>
+              <option value="limited">محدود</option>
+              <option value="disabled">غیرفعال</option>
             </select>
           </div>
           <div class="flex gap-2" id="user-actions-iran">
-            <button class="btn btn-primary" onclick="showCreateUserModal()">+ Create User</button>
-            <button class="btn btn-secondary" onclick="showAutoCreateModal()">Auto Create</button>
+            <button class="btn btn-primary" onclick="showCreateUserModal()">+ ایجاد کاربر</button>
+            <button class="btn btn-secondary" onclick="showAutoCreateModal()">ایجاد خودکار</button>
           </div>
+        </div>
+        <div class="card mb-3">
+          <div class="card-header">کاربران آنلاین</div>
+          <div id="online-users-list" style="font-size:13px;color:#64748b">در حال بارگذاری...</div>
         </div>
         <div class="card">
           <div class="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Username</th><th>UUID</th><th>Plan</th><th>Status</th><th>Traffic</th><th>Expires</th><th>Actions</th></tr>
-              </thead>
-              <tbody id="users-table-body"><tr><td colspan="7">Loading...</td></tr></tbody>
-            </table>
+            <table><thead><tr><th>نام کاربری</th><th>UUID</th><th>پلن</th><th>وضعیت</th><th>ترافیک</th><th>انقضا</th><th>عملیات</th></tr></thead>
+            <tbody id="users-table-body"><tr><td colspan="7">در حال بارگذاری...</td></tr></tbody></table>
           </div>
           <div class="pagination mt-2" id="users-pagination"></div>
         </div>
@@ -152,36 +181,32 @@
 
       <!-- Servers Page -->
       <div class="page" id="page-servers" style="display:none">
-        <div class="flex gap-2 mb-3" style="justify-content:flex-end">
-          <button class="btn btn-primary" onclick="showAddServerModal()">+ Add Server</button>
-        </div>
-        <div class="grid grid-2 gap-3" id="servers-grid">Loading...</div>
+        <div class="flex gap-2 mb-3" style="justify-content:flex-end"><button class="btn btn-primary" onclick="showAddServerModal()">+ افزودن سرور</button></div>
+        <div class="grid grid-2 gap-3" id="servers-grid">در حال بارگذاری...</div>
       </div>
 
       <!-- Tunnels Page -->
       <div class="page" id="page-tunnels" style="display:none">
         <div class="flex gap-2 mb-3" style="justify-content:space-between">
-          <h3>Tunnel Management</h3>
+          <h3>مدیریت تانل‌ها</h3>
           <div class="flex gap-2">
-            <button class="btn btn-primary" onclick="showAddTunnelModal()">+ Add Tunnel</button>
-            <button class="btn btn-secondary" onclick="runMonitoring()">&#9881; Run Monitor</button>
+            <button class="btn btn-primary" onclick="showAddTunnelModal()">+ افزودن تانل</button>
+            <button class="btn btn-secondary" onclick="runMonitoring()">&#9881; اجرای مانیتور</button>
           </div>
         </div>
         <div class="card mb-3">
-          <div class="card-header">Port Allocation Rules</div>
+          <div class="card-header">قوانین تخصیص پورت</div>
           <div id="port-rules-info" style="font-size:13px;color:#64748b;line-height:1.8">
-            <div><strong>Port 443:</strong> Best tunnel auto-selected (SSH / FRP / GOST / Chisel) - Current: <span id="port443-engine" class="badge badge-info">-</span></div>
-            <div><strong>Port 8443:</strong> TrustTunnel (HTTP/3) - <span class="badge badge-success">Always Active</span></div>
-            <div><strong>Ports 110, 510:</strong> OpenVPN - <span class="badge badge-success">Always Active</span></div>
-            <div><strong>Ports 1414, 53133:</strong> WireGuard - <span class="badge badge-success">Always Active</span></div>
+            <div><strong>پورت 443:</strong> بهترین تانل خودکار (SSH/FRP/GOST/Chisel) - فعلی: <span id="port443-engine" class="badge badge-info">-</span></div>
+            <div><strong>پورت 8443:</strong> TrustTunnel (HTTP/3) - <span class="badge badge-success">همیشه فعال</span></div>
+            <div><strong>پورت‌های 110, 510:</strong> OpenVPN - <span class="badge badge-success">همیشه فعال</span></div>
+            <div><strong>پورت‌های 1414, 53133:</strong> WireGuard - <span class="badge badge-success">همیشه فعال</span></div>
           </div>
         </div>
         <div class="card">
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Protocol</th><th>Transport</th><th>Port</th><th>Status</th><th>Score</th><th>Latency</th><th>Primary</th><th>Actions</th></tr></thead>
-              <tbody id="tunnels-table-body"><tr><td colspan="8">Loading...</td></tr></tbody>
-            </table>
+            <table><thead><tr><th>پروتکل</th><th>انتقال</th><th>پورت</th><th>وضعیت</th><th>امتیاز</th><th>تاخیر</th><th>اصلی</th><th>عملیات</th></tr></thead>
+            <tbody id="tunnels-table-body"><tr><td colspan="8">در حال بارگذاری...</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -189,65 +214,153 @@
       <!-- Autopilot Page -->
       <div class="page" id="page-autopilot" style="display:none">
         <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
-          <h3>Autopilot Tunnel Management</h3>
-          <div class="flex gap-2">
-            <button class="btn btn-primary" onclick="runAutopilotMonitor()">&#9889; Run Autopilot Cycle</button>
-          </div>
+          <h3>مدیریت خودکار تانل‌ها (اتوپایلوت)</h3>
+          <button class="btn btn-primary" onclick="runAutopilotMonitor()">&#9889; اجرای سیکل اتوپایلوت</button>
         </div>
-
         <div class="grid grid-3 gap-3 mb-3">
-          <div class="stat-card"><div class="stat-icon stat-blue">&#128268;</div><div><div class="stat-value" id="ap-primary443">-</div><div class="stat-label">Primary on Port 443</div></div></div>
-          <div class="stat-card"><div class="stat-icon stat-green">&#9889;</div><div><div class="stat-value" id="ap-switch-count">-</div><div class="stat-label">Auto Switches</div></div></div>
-          <div class="stat-card"><div class="stat-icon stat-orange">&#128336;</div><div><div class="stat-value" id="ap-last-cycle">-</div><div class="stat-label">Last Cycle</div></div></div>
+          <div class="stat-card"><div><div class="stat-value" id="ap-primary443">-</div><div class="stat-label">اصلی روی پورت 443</div></div><div class="stat-icon stat-blue">&#128268;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="ap-switch-count">-</div><div class="stat-label">تعویض‌های خودکار</div></div><div class="stat-icon stat-green">&#9889;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="ap-last-cycle">-</div><div class="stat-label">آخرین سیکل</div></div><div class="stat-icon stat-orange">&#128336;</div></div>
         </div>
-
         <div class="card mb-3">
-          <div class="card-header">Port 443 - Tunnel Candidates</div>
-          <p style="color:#64748b;font-size:13px;margin-bottom:12px">These tunnels compete for port 443. Autopilot selects the best one every 10 minutes.</p>
-          <div id="autopilot-candidates">Loading...</div>
+          <div class="card-header">کاندیداهای پورت 443</div>
+          <div id="autopilot-candidates">در حال بارگذاری...</div>
         </div>
-
         <div class="card mb-3">
-          <div class="card-header">Always-On Services</div>
-          <p style="color:#64748b;font-size:13px;margin-bottom:12px">These services run on dedicated ports and are always active.</p>
-          <div id="autopilot-always-on">Loading...</div>
+          <div class="card-header">سرویس‌های همیشه فعال</div>
+          <div id="autopilot-always-on">در حال بارگذاری...</div>
         </div>
-
         <div class="card mb-3">
-          <div class="card-header">Manual Override</div>
-          <p style="color:#64748b;font-size:13px;margin-bottom:12px">Manually select the primary tunnel for port 443.</p>
+          <div class="card-header">انتخاب دستی</div>
           <div class="flex gap-2">
             <select class="form-control" id="manual-primary-select" style="width:200px">
-              <option value="ssh">SSH</option>
-              <option value="frp">FRP (TLS)</option>
-              <option value="gost" selected>GOST (TLS/QUIC)</option>
-              <option value="chisel">Chisel (TLS)</option>
+              <option value="ssh">SSH</option><option value="frp">FRP (TLS)</option><option value="gost" selected>GOST (TLS/QUIC)</option><option value="chisel">Chisel (TLS)</option>
             </select>
-            <button class="btn btn-primary" onclick="setManualPrimary()">Set Primary</button>
+            <button class="btn btn-primary" onclick="setManualPrimary()">تنظیم اصلی</button>
           </div>
         </div>
+        <div class="card"><div class="card-header">موتورهای تانل</div><div id="tunnel-engines-list">در حال بارگذاری...</div></div>
+      </div>
 
+      <!-- GeoRouting Page -->
+      <div class="page" id="page-georouting" style="display:none">
+        <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
+          <h3>مسیریابی GeoIP/GeoData</h3>
+          <div class="flex gap-2">
+            <button class="btn btn-primary" onclick="showAddGeoRuleModal()">+ افزودن قانون</button>
+            <button class="btn btn-secondary" onclick="initDefaultGeoRules()">بارگذاری پیش‌فرض‌ها</button>
+            <button class="btn btn-outline" onclick="updateGeoData()">&#8635; بروزرسانی GeoData</button>
+          </div>
+        </div>
+        <div class="card mb-3">
+          <div class="card-header">وضعیت</div>
+          <div id="geo-status">در حال بارگذاری...</div>
+          <div class="mt-2" style="font-size:12px;color:#64748b">
+            منبع: <a href="https://github.com/chocolate4u/Iran-v2ray-rules" target="_blank">chocolate4u/Iran-v2ray-rules</a>
+            | پروتکل‌های XTLS: RPRX-Direct, Vision, REALITY
+          </div>
+        </div>
         <div class="card">
-          <div class="card-header">Tunnel Engines</div>
-          <div id="tunnel-engines-list">Loading...</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>نام</th><th>نوع</th><th>عمل</th><th>مقدار</th><th>اولویت</th><th>فعال</th><th>عملیات</th></tr></thead>
+            <tbody id="geo-rules-body"><tr><td colspan="7">در حال بارگذاری...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Management Page -->
+      <div class="page" id="page-core" style="display:none">
+        <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
+          <h3>مدیریت هسته (Xray / Sing-box)</h3>
+          <button class="btn btn-outline" onclick="loadCore()">&#8635; بروزرسانی</button>
+        </div>
+        <div class="grid grid-2 gap-3 mb-3">
+          <div class="card">
+            <div class="card-header">Xray Core</div>
+            <div id="xray-status">در حال بارگذاری...</div>
+            <div class="flex gap-2 mt-2">
+              <button class="btn btn-sm btn-success" onclick="coreAction('xray','start')">شروع</button>
+              <button class="btn btn-sm btn-danger" onclick="coreAction('xray','stop')">توقف</button>
+              <button class="btn btn-sm btn-secondary" onclick="coreAction('xray','restart')">ریستارت</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">Sing-box</div>
+            <div id="singbox-status">در حال بارگذاری...</div>
+            <div class="flex gap-2 mt-2">
+              <button class="btn btn-sm btn-success" onclick="coreAction('singbox','start')">شروع</button>
+              <button class="btn btn-sm btn-danger" onclick="coreAction('singbox','stop')">توقف</button>
+              <button class="btn btn-sm btn-secondary" onclick="coreAction('singbox','restart')">ریستارت</button>
+            </div>
+          </div>
+        </div>
+        <div class="card mb-3">
+          <div class="card-header">تشخیص تداخل پورت‌ها</div>
+          <div id="port-conflicts">در حال بارگذاری...</div>
+        </div>
+        <div class="card mb-3">
+          <div class="card-header">نسخه‌های موجود</div>
+          <div id="core-versions">در حال بارگذاری...</div>
+        </div>
+        <div class="card">
+          <div class="card-header">لاگ‌ها</div>
+          <div class="flex gap-2 mb-2">
+            <button class="btn btn-sm btn-outline" onclick="loadCoreLogs('xray')">لاگ Xray</button>
+            <button class="btn btn-sm btn-outline" onclick="loadCoreLogs('singbox')">لاگ Sing-box</button>
+          </div>
+          <div id="core-logs" class="log-box" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- WARP Page -->
+      <div class="page" id="page-warp" style="display:none">
+        <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
+          <h3>Cloudflare WARP</h3>
+          <button class="btn btn-primary" onclick="showAddWarpModal()">+ افزودن تنظیمات WARP</button>
+        </div>
+        <div class="card mb-3">
+          <div class="card-header">وضعیت WARP</div>
+          <div id="warp-status">در حال بارگذاری...</div>
+        </div>
+        <div class="card">
+          <div class="card-header">تنظیمات WARP</div>
+          <div id="warp-configs">در حال بارگذاری...</div>
+        </div>
+      </div>
+
+      <!-- Content Blocking Page -->
+      <div class="page" id="page-contentblock" style="display:none">
+        <h3 class="mb-3">مسدودسازی محتوا (تورنت / پورنوگرافی / قمار)</h3>
+        <div class="card">
+          <div class="card-header">دسته‌بندی‌های قابل مسدودسازی</div>
+          <div id="content-categories">در حال بارگذاری...</div>
+        </div>
+      </div>
+
+      <!-- Subdomains Page -->
+      <div class="page" id="page-subdomains" style="display:none">
+        <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
+          <h3>مدیریت ساب‌دامین‌ها و SSL</h3>
+          <button class="btn btn-primary" onclick="showAddSubdomainModal()">+ افزودن ساب‌دامین</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table><thead><tr><th>ساب‌دامین</th><th>دامنه اصلی</th><th>کاربرد</th><th>SSL</th><th>عملیات</th></tr></thead>
+            <tbody id="subdomains-body"><tr><td colspan="5">در حال بارگذاری...</td></tr></tbody></table>
+          </div>
         </div>
       </div>
 
       <!-- Domains Page -->
       <div class="page" id="page-domains" style="display:none">
         <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
-          <h3>Domain Management</h3>
-          <div class="flex gap-2">
-            <button class="btn btn-primary" onclick="showAddDomainModal()">+ Add Domain</button>
-            <button class="btn btn-secondary" onclick="showGenerateSubdomainsModal()">Auto Generate Subdomains</button>
-          </div>
+          <h3>مدیریت دامنه‌ها</h3>
+          <button class="btn btn-primary" onclick="showAddDomainModal()">+ افزودن دامنه</button>
         </div>
         <div class="card">
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Domain</th><th>Type</th><th>Purpose</th><th>SSL</th><th>Iran Access</th><th>Last Check</th><th>Actions</th></tr></thead>
-              <tbody id="domains-table-body"><tr><td colspan="7">Loading...</td></tr></tbody>
-            </table>
+            <table><thead><tr><th>دامنه</th><th>نوع</th><th>کاربرد</th><th>SSL</th><th>دسترسی ایران</th><th>آخرین بررسی</th><th>عملیات</th></tr></thead>
+            <tbody id="domains-table-body"><tr><td colspan="7">در حال بارگذاری...</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -255,47 +368,38 @@
       <!-- External Panels Page -->
       <div class="page" id="page-external-panels" style="display:none">
         <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
-          <h3>External Panels (Marzban / 3x-ui)</h3>
-          <button class="btn btn-primary" onclick="showAddExternalPanelModal()">+ Add Panel</button>
+          <h3>پنل‌های خارجی (Marzban / 3x-ui)</h3>
+          <button class="btn btn-primary" onclick="showAddExternalPanelModal()">+ افزودن پنل</button>
         </div>
-        <div class="grid grid-2 gap-3" id="external-panels-grid">Loading...</div>
+        <div class="grid grid-2 gap-3" id="external-panels-grid">در حال بارگذاری...</div>
       </div>
 
       <!-- Import/Export Page -->
       <div class="page" id="page-importexport" style="display:none">
         <div class="grid grid-2 gap-3">
           <div class="card">
-            <div class="card-header">Export</div>
+            <div class="card-header">خروجی گرفتن</div>
             <div class="mt-2">
-              <p style="color:#64748b;font-size:13px;margin-bottom:12px">Download users, settings, or full backup as JSON files.</p>
               <div class="flex gap-2" style="flex-direction:column">
                 <div class="flex gap-2">
                   <select class="form-control" id="export-format" style="width:200px">
-                    <option value="elahe">Elahe Format</option>
-                    <option value="marzban">Marzban Format</option>
-                    <option value="3xui">3x-ui Format</option>
+                    <option value="elahe">فرمت Elahe</option><option value="marzban">فرمت Marzban</option><option value="3xui">فرمت 3x-ui</option>
                   </select>
-                  <button class="btn btn-primary" onclick="exportUsers()">Export Users</button>
+                  <button class="btn btn-primary" onclick="exportUsers()">خروجی کاربران</button>
                 </div>
-                <button class="btn btn-secondary" onclick="exportSettings()">Export Settings</button>
-                <button class="btn btn-outline" onclick="exportFull()">Full Backup</button>
+                <button class="btn btn-secondary" onclick="exportSettings()">خروجی تنظیمات</button>
+                <button class="btn btn-outline" onclick="exportFull()">پشتیبان کامل</button>
               </div>
             </div>
           </div>
           <div class="card">
-            <div class="card-header">Import</div>
+            <div class="card-header">ورود داده</div>
             <div class="mt-2">
-              <p style="color:#64748b;font-size:13px;margin-bottom:12px">Import users or settings from JSON files. Supports Elahe, Marzban, and 3x-ui formats.</p>
-              <div class="flex gap-2" style="flex-direction:column">
-                <div class="form-group">
-                  <label>Select JSON file</label>
-                  <input type="file" class="form-control" id="import-file" accept=".json" style="padding:8px">
-                </div>
-                <div class="flex gap-2">
-                  <button class="btn btn-primary" onclick="importUsers()">Import Users</button>
-                  <button class="btn btn-secondary" onclick="importSettings()">Import Settings</button>
-                  <button class="btn btn-outline" onclick="importFull()">Full Restore</button>
-                </div>
+              <div class="form-group"><label>فایل JSON را انتخاب کنید</label><input type="file" class="form-control" id="import-file" accept=".json" style="padding:8px"></div>
+              <div class="flex gap-2">
+                <button class="btn btn-primary" onclick="importUsers()">ورود کاربران</button>
+                <button class="btn btn-secondary" onclick="importSettings()">ورود تنظیمات</button>
+                <button class="btn btn-outline" onclick="importFull()">بازیابی کامل</button>
               </div>
               <div id="import-result" class="mt-2" style="display:none"></div>
             </div>
@@ -303,104 +407,50 @@
         </div>
       </div>
 
+      <!-- API Keys Page -->
+      <div class="page" id="page-apikeys" style="display:none">
+        <div class="flex gap-2 mb-3" style="justify-content:space-between;flex-wrap:wrap">
+          <h3>کلیدهای API</h3>
+          <button class="btn btn-primary" onclick="showCreateApiKeyModal()">+ ایجاد کلید جدید</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table><thead><tr><th>نام</th><th>دسترسی‌ها</th><th>وضعیت</th><th>آخرین استفاده</th><th>انقضا</th><th>عملیات</th></tr></thead>
+            <tbody id="apikeys-body"><tr><td colspan="6">در حال بارگذاری...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
       <!-- Settings Page -->
       <div class="page" id="page-settings" style="display:none">
         <div class="card">
-          <div class="card-header">Site Configuration</div>
+          <div class="card-header">تنظیمات سایت</div>
           <form id="settings-form" onsubmit="saveSettings(event)">
             <div id="settings-sections"></div>
-            <button type="submit" class="btn btn-primary mt-3">Save Settings</button>
+            <button type="submit" class="btn btn-primary mt-3">ذخیره تنظیمات</button>
           </form>
+        </div>
+        <div class="card mt-3" id="custom-port-card" style="display:none">
+          <div class="card-header">مدیریت پورت سفارشی (حالت ایران)</div>
+          <div class="flex gap-2">
+            <input type="number" class="form-control" id="cp-port" placeholder="شماره پورت" style="width:150px">
+            <select class="form-control" id="cp-protocol" style="width:200px">
+              <option value="vless-reality">VLESS-Reality</option><option value="vmess">VMess</option><option value="trojan">Trojan</option>
+              <option value="shadowsocks">Shadowsocks</option><option value="hysteria2">Hysteria2</option><option value="custom">سفارشی</option>
+            </select>
+            <button class="btn btn-primary" onclick="requestCustomPort()">درخواست باز کردن پورت</button>
+          </div>
+          <div id="cp-result" class="mt-2" style="display:none"></div>
         </div>
       </div>
     </main>
   </div>
 
-  <!-- Create User Modal -->
-  <div class="modal-overlay" id="createUserModal">
-    <div class="modal">
-      <div class="modal-title">Create User <button class="modal-close-btn" onclick="closeModal('createUserModal')">&times;</button></div>
-      <div id="create-user-error" class="alert alert-error" style="display:none"></div>
-      <form onsubmit="createUser(event)">
-        <div class="form-group"><label>Username *</label><input class="form-control" id="cu-username" required></div>
-        <div class="form-group"><label>Password (auto if empty)</label><input class="form-control" id="cu-password"></div>
-        <div class="form-group"><label>Email</label><input type="email" class="form-control" id="cu-email"></div>
-        <div class="form-group"><label>Plan</label><select class="form-control" id="cu-plan"><option value="bronze">Bronze</option><option value="silver">Silver</option><option value="gold">Gold</option></select></div>
-        <div class="form-group"><label>Traffic Limit (GB)</label><input type="number" class="form-control" id="cu-traffic" value="50"></div>
-        <div class="form-group"><label>Expiry Days</label><input type="number" class="form-control" id="cu-expiry" value="30"></div>
-        <div class="form-group"><label>Max Connections</label><input type="number" class="form-control" id="cu-maxconn" value="2"></div>
-        <div class="form-group"><label>Note</label><textarea class="form-control" id="cu-note" rows="2"></textarea></div>
-        <div class="alert alert-info" style="font-size:12px;margin-bottom:12px">
-          <strong>TrustTunnel:</strong> Always active on port 8443. Users can connect via HTTP/3 using Hiddify/Streisand apps.<br>
-          <strong>OpenVPN &amp; WireGuard:</strong> Always active on dedicated ports. Configs in user subscription page.
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%">Create User</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Add Server Modal -->
-  <div class="modal-overlay" id="addServerModal">
-    <div class="modal">
-      <div class="modal-title">Add Server <button class="modal-close-btn" onclick="closeModal('addServerModal')">&times;</button></div>
-      <form onsubmit="addServer(event)">
-        <div class="form-group"><label>Name *</label><input class="form-control" id="as-name" required></div>
-        <div class="form-group"><label>Type *</label><select class="form-control" id="as-type"><option value="iran">Iran (Edge)</option><option value="foreign">Foreign (Upstream)</option></select></div>
-        <div class="form-group"><label>IP Address *</label><input class="form-control" id="as-ip" required></div>
-        <div class="form-group"><label>Port</label><input type="number" class="form-control" id="as-port" value="3000"></div>
-        <div class="form-group"><label>Core Engine</label><select class="form-control" id="as-core"><option value="xray">Xray</option><option value="singbox">Sing-box</option></select></div>
-        <div class="form-group"><label>Location</label><input class="form-control" id="as-location"></div>
-        <div class="form-group"><label>Max Users</label><input type="number" class="form-control" id="as-maxusers" value="100"></div>
-        <button type="submit" class="btn btn-primary" style="width:100%">Add Server</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- User Info Modal -->
-  <div class="modal-overlay" id="userInfoModal">
+  <!-- Modals will be added dynamically via JS for simplicity -->
+  <div class="modal-overlay" id="genericModal">
     <div class="modal" style="max-width:600px">
-      <div class="modal-title">User Details <button class="modal-close-btn" onclick="closeModal('userInfoModal')">&times;</button></div>
-      <div id="user-info-content">Loading...</div>
-    </div>
-  </div>
-
-  <!-- Add Domain Modal -->
-  <div class="modal-overlay" id="addDomainModal">
-    <div class="modal">
-      <div class="modal-title">Add Domain <button class="modal-close-btn" onclick="closeModal('addDomainModal')">&times;</button></div>
-      <form onsubmit="addDomain(event)">
-        <div class="form-group"><label>Domain *</label><input class="form-control" id="ad-domain" required placeholder="example.com"></div>
-        <div class="form-group"><label>Server (optional)</label><select class="form-control" id="ad-server"><option value="">None</option></select></div>
-        <button type="submit" class="btn btn-primary" style="width:100%">Add Domain</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Generate Subdomains Modal -->
-  <div class="modal-overlay" id="generateSubdomainsModal">
-    <div class="modal">
-      <div class="modal-title">Generate Subdomains <button class="modal-close-btn" onclick="closeModal('generateSubdomainsModal')">&times;</button></div>
-      <form onsubmit="generateSubdomains(event)">
-        <div class="form-group"><label>Parent Domain *</label><input class="form-control" id="gs-domain" required placeholder="example.com"></div>
-        <div class="form-group"><label>Server (optional)</label><select class="form-control" id="gs-server"><option value="">None</option></select></div>
-        <p style="font-size:12px;color:#64748b;margin-bottom:12px">This will automatically generate 10 non-suspicious subdomains (cdn, api, mail, cloud, portal, app, data, auth, static, media) for the specified domain.</p>
-        <button type="submit" class="btn btn-primary" style="width:100%">Generate 10 Subdomains</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Add External Panel Modal -->
-  <div class="modal-overlay" id="addExternalPanelModal">
-    <div class="modal">
-      <div class="modal-title">Add External Panel <button class="modal-close-btn" onclick="closeModal('addExternalPanelModal')">&times;</button></div>
-      <form onsubmit="addExternalPanel(event)">
-        <div class="form-group"><label>Name *</label><input class="form-control" id="ep-name" required placeholder="My Marzban Panel"></div>
-        <div class="form-group"><label>Type *</label><select class="form-control" id="ep-type"><option value="marzban">Marzban</option><option value="3xui">3x-ui</option></select></div>
-        <div class="form-group"><label>URL *</label><input class="form-control" id="ep-url" required placeholder="https://panel.example.com:8080"></div>
-        <div class="form-group"><label>Username</label><input class="form-control" id="ep-username"></div>
-        <div class="form-group"><label>Password</label><input type="password" class="form-control" id="ep-password"></div>
-        <button type="submit" class="btn btn-primary" style="width:100%">Add Panel</button>
-      </form>
+      <div class="modal-title"><span id="modal-title-text">عملیات</span><button class="modal-close-btn" onclick="closeModal('genericModal')">&times;</button></div>
+      <div id="modal-body"></div>
     </div>
   </div>
 

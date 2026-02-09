@@ -1,6 +1,8 @@
 /**
  * Elahe Panel - Authentication Service
  * Login works normally, Registration gives confusing errors
+ * Developer: EHSANKiNG
+ * Version: 0.0.4
  */
 
 const bcrypt = require('bcryptjs');
@@ -10,6 +12,31 @@ const config = require('../../config/default');
 const { createLogger } = require('../../utils/logger');
 
 const log = createLogger('Auth');
+
+// Localized error messages
+const AUTH_MESSAGES = {
+  ir: {
+    invalidCredentials: '\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC \u06CC\u0627 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0627\u0634\u062A\u0628\u0627\u0647 \u0627\u0633\u062A',
+    accountDisabled: '\u062D\u0633\u0627\u0628 \u06A9\u0627\u0631\u0628\u0631\u06CC \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0634\u062F\u0647 \u0627\u0633\u062A',
+    tooManyAttempts: '\u062A\u0639\u062F\u0627\u062F \u062A\u0644\u0627\u0634\u200C\u0647\u0627 \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0645\u062C\u0627\u0632. \u0644\u0637\u0641\u0627\u064B \u0628\u0639\u062F\u0627\u064B \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.',
+    invalidCaptcha: '\u06A9\u062F \u0627\u0645\u0646\u06CC\u062A\u06CC \u0627\u0634\u062A\u0628\u0627\u0647 \u0627\u0633\u062A',
+    fieldsRequired: '\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0648 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A',
+    serverError: '\u062E\u0637\u0627\u06CC \u0633\u0631\u0648\u0631. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.',
+  },
+  en: {
+    invalidCredentials: 'Invalid username or password',
+    accountDisabled: 'Account has been disabled',
+    tooManyAttempts: 'Too many attempts. Please try again later.',
+    invalidCaptcha: 'Invalid security code',
+    fieldsRequired: 'Username and password are required',
+    serverError: 'Server error. Please try again.',
+  },
+};
+
+// Get messages based on current mode
+function getMessages() {
+  return config.mode === 'iran' ? AUTH_MESSAGES.ir : AUTH_MESSAGES.en;
+}
 
 // Confusing error messages for registration (by design)
 const CONFUSING_ERRORS = {
@@ -40,18 +67,19 @@ class AuthService {
    * Admin login
    */
   static async adminLogin(username, password) {
+    const msg = getMessages();
     const db = getDb();
     const admin = db.prepare('SELECT * FROM admins WHERE username = ? AND status = ?').get(username, 'active');
     
     if (!admin) {
       log.warn('Failed admin login attempt', { username });
-      return { success: false, error: 'Invalid credentials' };
+      return { success: false, error: msg.invalidCredentials };
     }
 
     const valid = await bcrypt.compare(password, admin.password);
     if (!valid) {
       log.warn('Failed admin login - wrong password', { username });
-      return { success: false, error: 'Invalid credentials' };
+      return { success: false, error: msg.invalidCredentials };
     }
 
     // Update last login
@@ -72,17 +100,18 @@ class AuthService {
    * User login (for subscription panel access)
    */
   static async userLogin(username, password) {
+    const msg = getMessages();
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE username = ? AND status != ?').get(username, 'disabled');
     
     if (!user) {
-      return { success: false, error: 'Invalid credentials' };
+      return { success: false, error: msg.invalidCredentials };
     }
 
     if (user.password) {
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) {
-        return { success: false, error: 'Invalid credentials' };
+        return { success: false, error: msg.invalidCredentials };
       }
     }
 
@@ -124,6 +153,13 @@ class AuthService {
     } catch (err) {
       return null;
     }
+  }
+
+  /**
+   * Get localized messages
+   */
+  static getMessages() {
+    return getMessages();
   }
 }
 

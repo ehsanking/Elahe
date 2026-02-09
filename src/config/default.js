@@ -1,7 +1,7 @@
 /**
  * Elahe Panel - Default Configuration
  * Developer: EHSANKiNG
- * Version: 0.0.3
+ * Version: 0.0.4
  */
 
 const path = require('path');
@@ -14,7 +14,7 @@ module.exports = {
   // Server settings
   server: {
     host: process.env.HOST || '0.0.0.0',
-    port: parseInt(process.env.PORT) || 3000,
+    port: parseInt(process.env.PORT) || 443,
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     jwtSecret: process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex'),
     jwtExpiry: '24h',
@@ -106,7 +106,7 @@ module.exports = {
     enabled: (process.env.SSL_ENABLED || 'auto'), // 'auto', 'true', 'false'
     cert: process.env.SSL_CERT || path.join(__dirname, '../../certs/fullchain.pem'),
     key: process.env.SSL_KEY || path.join(__dirname, '../../certs/privkey.pem'),
-    httpsPort: parseInt(process.env.HTTPS_PORT) || parseInt(process.env.PORT) || 3000,
+    httpsPort: parseInt(process.env.HTTPS_PORT) || parseInt(process.env.PORT) || 443,
     httpPort: parseInt(process.env.HTTP_PORT) || 80,
     redirectHttp: process.env.SSL_REDIRECT_HTTP !== 'false', // redirect HTTP->HTTPS by default
   },

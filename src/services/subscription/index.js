@@ -1,7 +1,7 @@
 /**
  * Elahe Panel - Subscription Service
  * Includes TrustTunnel config in user info page
- * Version: 0.0.3
+ * Version: 0.0.4
  */
 
 const { getDb } = require('../../database');

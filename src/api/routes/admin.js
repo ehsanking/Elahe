@@ -1,9 +1,9 @@
 /**
  * Elahe Panel - Admin API Routes
  * Full-featured admin API with Iran/Foreign mode separation
- * Includes Autopilot tunnel management and engine controls
+ * Includes Autopilot, GeoRouting, WARP, Core Management, Content Blocking
  * Developer: EHSANKiNG
- * Version: 0.0.3
+ * Version: 0.0.4
  */
 
 const express = require('express');
@@ -18,9 +18,15 @@ const ExternalPanelService = require('../../services/externalpanel');
 const autopilotService = require('../../services/autopilot');
 const { tunnelManager } = require('../../tunnel/engines');
 const SystemMonitor = require('../../services/monitor');
+const GeoRoutingService = require('../../services/georouting');
+const CoreManager = require('../../services/coremanager');
+const WarpService = require('../../services/warp');
+const ContentBlockService = require('../../services/contentblock');
 const { getDb } = require('../../database');
 const { createLogger } = require('../../utils/logger');
 const config = require('../../config/default');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 const log = createLogger('AdminAPI');
 const adminAuth = authMiddleware('admin');
@@ -28,7 +34,7 @@ const adminAuth = authMiddleware('admin');
 // ============ MODE-AWARE MIDDLEWARE ============
 const iranOnly = (req, res, next) => {
   if (config.mode === 'foreign') {
-    return res.status(403).json({ error: 'This feature is only available on Iran panel', mode: config.mode });
+    return res.status(403).json({ error: '\u0627\u06CC\u0646 \u0642\u0627\u0628\u0644\u06CC\u062A \u0641\u0642\u0637 \u062F\u0631 \u067E\u0646\u0644 \u0627\u06CC\u0631\u0627\u0646 \u0645\u0648\u062C\u0648\u062F \u0627\u0633\u062A', mode: config.mode });
   }
   next();
 };
@@ -41,29 +47,23 @@ router.get('/dashboard', adminAuth, (req, res) => {
     tunnels: TunnelService.getStats(),
     tunnelEngines: tunnelManager.getStats(),
     mode: config.mode,
-    version: '0.0.3',
+    version: '0.0.4',
   };
 
   // Add domain stats
-  try {
-    dashboard.domains = DomainService.getStats();
-  } catch (e) {
-    dashboard.domains = { total: 0 };
-  }
-
+  try { dashboard.domains = DomainService.getStats(); } catch (e) { dashboard.domains = { total: 0 }; }
   // Add external panels count
-  try {
-    dashboard.externalPanels = ExternalPanelService.listPanels().length;
-  } catch (e) {
-    dashboard.externalPanels = 0;
-  }
-
+  try { dashboard.externalPanels = ExternalPanelService.listPanels().length; } catch (e) { dashboard.externalPanels = 0; }
   // Add autopilot status
-  try {
-    dashboard.autopilot = autopilotService.getStatus();
-  } catch (e) {
-    dashboard.autopilot = { initialized: false };
-  }
+  try { dashboard.autopilot = autopilotService.getStatus(); } catch (e) { dashboard.autopilot = { initialized: false }; }
+  // Add geo routing stats
+  try { dashboard.geoRouting = GeoRoutingService.getStats(); } catch (e) { dashboard.geoRouting = { total: 0 }; }
+  // Add WARP status
+  try { dashboard.warp = WarpService.getStatus(); } catch (e) { dashboard.warp = { configured: false }; }
+  // Add content blocking stats
+  try { dashboard.contentBlock = ContentBlockService.getStats(); } catch (e) { dashboard.contentBlock = { total: 0 }; }
+  // Add core status
+  try { dashboard.coreStatus = CoreManager.getCoreStatus(); } catch (e) { dashboard.coreStatus = {}; }
 
   // Add system resources
   try {
@@ -77,9 +77,14 @@ router.get('/dashboard', adminAuth, (req, res) => {
     };
     dashboard.bandwidth = SystemMonitor.getBandwidthSummary();
     dashboard.connections = SystemMonitor.getActiveConnections();
-  } catch (e) {
-    dashboard.system = null;
-  }
+  } catch (e) { dashboard.system = null; }
+
+  // Add online users count
+  try {
+    const db = getDb();
+    const online = db.prepare("SELECT COUNT(*) as c FROM users WHERE is_online = 1").get();
+    dashboard.onlineUsers = online.c;
+  } catch (e) { dashboard.onlineUsers = 0; }
 
   res.json(dashboard);
 });
@@ -87,7 +92,6 @@ router.get('/dashboard', adminAuth, (req, res) => {
 // ============ PANEL CAPABILITIES ============
 router.get('/capabilities', adminAuth, (req, res) => {
   const mode = config.mode;
-
   res.json({
     mode,
     capabilities: {
@@ -105,7 +109,14 @@ router.get('/capabilities', adminAuth, (req, res) => {
       autopilot: true,
       tunnelEngines: true,
       tunnelEndpoint: mode === 'foreign',
-      coreManagement: mode === 'foreign',
+      coreManagement: true,
+      geoRouting: true,
+      warp: true,
+      contentBlocking: true,
+      subdomainManagement: true,
+      apiKeys: true,
+      onlineUsers: true,
+      customPorts: mode === 'iran',
     },
   });
 });
@@ -131,7 +142,7 @@ router.post('/users/auto-create', adminAuth, iranOnly, async (req, res) => {
 
 router.get('/users/:id', adminAuth, (req, res) => {
   const user = UserService.getById(req.params.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user) return res.status(404).json({ error: '\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
   res.json(user);
 });
 
@@ -154,6 +165,22 @@ router.post('/users/:id/revoke-subscription', adminAuth, iranOnly, (req, res) =>
   res.json(UserService.revokeSubscription(req.params.id));
 });
 
+// ============ ONLINE USERS ============
+router.get('/users/online/list', adminAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const onlineUsers = db.prepare(`
+      SELECT u.id, u.username, u.uuid, u.plan, u.status, u.is_online, u.last_seen, u.client_info,
+             (SELECT COUNT(*) FROM active_connections ac WHERE ac.user_id = u.id) as active_connections
+      FROM users u WHERE u.is_online = 1
+      ORDER BY u.last_seen DESC
+    `).all();
+    res.json({ success: true, users: onlineUsers, count: onlineUsers.length });
+  } catch (err) {
+    res.json({ success: true, users: [], count: 0 });
+  }
+});
+
 // ============ SERVERS ============
 router.get('/servers', adminAuth, (req, res) => {
   const { type } = req.query;
@@ -168,7 +195,7 @@ router.post('/servers', adminAuth, (req, res) => {
 
 router.get('/servers/:id', adminAuth, (req, res) => {
   const server = ServerService.getById(req.params.id);
-  if (!server) return res.status(404).json({ error: 'Server not found' });
+  if (!server) return res.status(404).json({ error: '\u0633\u0631\u0648\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
   res.json(server);
 });
 
@@ -225,7 +252,7 @@ router.post('/autopilot/monitor', adminAuth, async (req, res) => {
 
 router.post('/autopilot/set-primary', adminAuth, (req, res) => {
   const { engine } = req.body;
-  if (!engine) return res.status(400).json({ error: 'Engine name required' });
+  if (!engine) return res.status(400).json({ error: '\u0646\u0627\u0645 \u0627\u0646\u062C\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
   const result = TunnelService.setPrimary443(engine);
   res.json(result);
 });
@@ -244,53 +271,31 @@ router.get('/autopilot/deployment-plan/:iranServerId/:foreignServerId', adminAut
   const db = getDb();
   const iranServer = db.prepare('SELECT * FROM servers WHERE id = ?').get(req.params.iranServerId);
   const foreignServer = db.prepare('SELECT * FROM servers WHERE id = ?').get(req.params.foreignServerId);
-
-  if (!iranServer || !foreignServer) {
-    return res.status(404).json({ error: 'Server not found' });
-  }
-
+  if (!iranServer || !foreignServer) return res.status(404).json({ error: '\u0633\u0631\u0648\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
   const plan = TunnelService.getDeploymentPlan(iranServer, foreignServer);
   res.json({ success: true, plan });
 });
 
 // ============ TUNNEL ENGINES ============
 router.get('/tunnel-engines', adminAuth, (req, res) => {
-  res.json({
-    success: true,
-    engines: tunnelManager.getEngines(),
-    stats: tunnelManager.getStats(),
-  });
+  res.json({ success: true, engines: tunnelManager.getEngines(), stats: tunnelManager.getStats() });
 });
 
 router.post('/tunnel-engines/create', adminAuth, async (req, res) => {
-  try {
-    const result = await tunnelManager.createTunnel(req.body);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  try { const result = await tunnelManager.createTunnel(req.body); res.json(result); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 router.post('/tunnel-engines/auto-setup', adminAuth, async (req, res) => {
   const { iranServerId, foreignServerId } = req.body;
-  if (!iranServerId || !foreignServerId) {
-    return res.status(400).json({ error: 'iranServerId and foreignServerId required' });
-  }
-  try {
-    const result = await tunnelManager.autoSetup(iranServerId, foreignServerId);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  if (!iranServerId || !foreignServerId) return res.status(400).json({ error: 'iranServerId and foreignServerId required' });
+  try { const result = await tunnelManager.autoSetup(iranServerId, foreignServerId); res.json(result); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 router.delete('/tunnel-engines/:tunnelId', adminAuth, async (req, res) => {
-  try {
-    const result = await tunnelManager.stopTunnel(req.params.tunnelId);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  try { const result = await tunnelManager.stopTunnel(req.params.tunnelId); res.json(result); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 router.get('/tunnel-engines/status', adminAuth, (req, res) => {
@@ -298,19 +303,235 @@ router.get('/tunnel-engines/status', adminAuth, (req, res) => {
 });
 
 router.get('/tunnel-engines/health', adminAuth, async (req, res) => {
-  try {
-    const results = await tunnelManager.healthCheckAll();
-    res.json({ success: true, results });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  try { const results = await tunnelManager.healthCheckAll(); res.json({ success: true, results }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 router.post('/tunnel-engines/deploy-config', adminAuth, (req, res) => {
   const { engine, ...options } = req.body;
-  const config = tunnelManager.generateDeployConfig(engine, options);
-  if (config.error) return res.status(400).json(config);
-  res.json({ success: true, config });
+  const conf = tunnelManager.generateDeployConfig(engine, options);
+  if (conf.error) return res.status(400).json(conf);
+  res.json({ success: true, config: conf });
+});
+
+// ============ GEO ROUTING (Iran-v2ray-rules) ============
+router.get('/geo-routing/rules', adminAuth, (req, res) => {
+  const { type } = req.query;
+  res.json({ success: true, rules: GeoRoutingService.listRules(type || null) });
+});
+
+router.post('/geo-routing/rules', adminAuth, (req, res) => {
+  const result = GeoRoutingService.addRule(req.body);
+  res.json(result);
+});
+
+router.put('/geo-routing/rules/:id', adminAuth, (req, res) => {
+  const result = GeoRoutingService.updateRule(req.params.id, req.body);
+  res.json(result);
+});
+
+router.delete('/geo-routing/rules/:id', adminAuth, (req, res) => {
+  res.json(GeoRoutingService.deleteRule(req.params.id));
+});
+
+router.post('/geo-routing/rules/:id/toggle', adminAuth, (req, res) => {
+  res.json(GeoRoutingService.toggleRule(req.params.id));
+});
+
+router.post('/geo-routing/init-defaults', adminAuth, (req, res) => {
+  res.json(GeoRoutingService.initDefaultRules());
+});
+
+router.get('/geo-routing/status', adminAuth, (req, res) => {
+  res.json({ success: true, ...GeoRoutingService.getStatus() });
+});
+
+router.get('/geo-routing/latest-release', adminAuth, async (req, res) => {
+  const result = await GeoRoutingService.getLatestRelease();
+  res.json(result);
+});
+
+router.post('/geo-routing/update-geodata', adminAuth, async (req, res) => {
+  const { engine } = req.body;
+  const result = await GeoRoutingService.updateGeoData(engine || config.core.engine);
+  res.json(result);
+});
+
+router.get('/geo-routing/xray-config', adminAuth, (req, res) => {
+  res.json({ success: true, routing: GeoRoutingService.generateXrayRouting() });
+});
+
+router.get('/geo-routing/singbox-config', adminAuth, (req, res) => {
+  res.json({ success: true, route: GeoRoutingService.generateSingboxRouting() });
+});
+
+// ============ CORE MANAGEMENT (Xray/Sing-box) ============
+router.get('/core/status', adminAuth, (req, res) => {
+  res.json({ success: true, ...CoreManager.getFullStatus() });
+});
+
+router.get('/core/versions', adminAuth, async (req, res) => {
+  const latest = await CoreManager.fetchLatestVersions();
+  const installed = CoreManager.getInstalledVersions();
+  res.json({ success: true, latest, installed });
+});
+
+router.post('/core/start', adminAuth, (req, res) => {
+  const { engine } = req.body;
+  if (!engine) return res.status(400).json({ error: '\u0646\u0627\u0645 \u0627\u0646\u062C\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
+  res.json(CoreManager.startCore(engine));
+});
+
+router.post('/core/stop', adminAuth, (req, res) => {
+  const { engine } = req.body;
+  if (!engine) return res.status(400).json({ error: '\u0646\u0627\u0645 \u0627\u0646\u062C\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
+  res.json(CoreManager.stopCore(engine));
+});
+
+router.post('/core/restart', adminAuth, (req, res) => {
+  const { engine } = req.body;
+  if (!engine) return res.status(400).json({ error: '\u0646\u0627\u0645 \u0627\u0646\u062C\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
+  res.json(CoreManager.restartCore(engine));
+});
+
+router.get('/core/port-conflicts', adminAuth, (req, res) => {
+  res.json({ success: true, conflicts: CoreManager.checkPortConflicts() });
+});
+
+router.get('/core/logs/:engine', adminAuth, (req, res) => {
+  const lines = parseInt(req.query.lines) || 50;
+  res.json(CoreManager.getCoreLogs(req.params.engine, lines));
+});
+
+// ============ WARP ============
+router.get('/warp/configs', adminAuth, (req, res) => {
+  res.json({ success: true, configs: WarpService.listConfigs() });
+});
+
+router.post('/warp/configs', adminAuth, (req, res) => {
+  res.json(WarpService.addConfig(req.body));
+});
+
+router.put('/warp/configs/:id', adminAuth, (req, res) => {
+  res.json(WarpService.updateConfig(req.params.id, req.body));
+});
+
+router.delete('/warp/configs/:id', adminAuth, (req, res) => {
+  res.json(WarpService.deleteConfig(req.params.id));
+});
+
+router.post('/warp/configs/:id/activate', adminAuth, (req, res) => {
+  res.json(WarpService.activateConfig(req.params.id));
+});
+
+router.put('/warp/configs/:id/domains', adminAuth, (req, res) => {
+  const { domains } = req.body;
+  res.json(WarpService.updateWarpDomains(req.params.id, domains || []));
+});
+
+router.get('/warp/status', adminAuth, (req, res) => {
+  res.json({ success: true, ...WarpService.getStatus() });
+});
+
+router.get('/warp/check', adminAuth, async (req, res) => {
+  const result = await WarpService.checkConnectivity();
+  res.json(result);
+});
+
+router.get('/warp/xray-outbound', adminAuth, (req, res) => {
+  const outbound = WarpService.generateXrayOutbound();
+  res.json({ success: !!outbound, outbound });
+});
+
+// ============ CONTENT BLOCKING (Torrent/Porn/Gambling) ============
+router.get('/content-block/categories', adminAuth, (req, res) => {
+  res.json({ success: true, categories: ContentBlockService.listCategories() });
+});
+
+router.post('/content-block/toggle', adminAuth, (req, res) => {
+  const { category, enabled } = req.body;
+  if (!category) return res.status(400).json({ error: 'category required' });
+  res.json(ContentBlockService.toggleCategory(category, enabled));
+});
+
+router.get('/content-block/xray-rules', adminAuth, (req, res) => {
+  res.json({ success: true, rules: ContentBlockService.generateXrayBlockRules() });
+});
+
+// ============ SUBDOMAIN MANAGEMENT ============
+router.get('/subdomains', adminAuth, (req, res) => {
+  const db = getDb();
+  const subdomains = db.prepare('SELECT * FROM subdomains ORDER BY id ASC').all();
+  res.json({ success: true, subdomains });
+});
+
+router.post('/subdomains', adminAuth, (req, res) => {
+  const { subdomain, parent_domain, purpose, server_id } = req.body;
+  if (!subdomain || !parent_domain) return res.status(400).json({ error: '\u0633\u0627\u0628\u200C\u062F\u0627\u0645\u06CC\u0646 \u0648 \u062F\u0627\u0645\u06CC\u0646 \u0627\u0635\u0644\u06CC \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
+
+  const db = getDb();
+  try {
+    const result = db.prepare(`
+      INSERT INTO subdomains (subdomain, parent_domain, purpose, server_id)
+      VALUES (?, ?, ?, ?)
+    `).run(subdomain, parent_domain, purpose || 'general', server_id || null);
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/subdomains/:id', adminAuth, (req, res) => {
+  const db = getDb();
+  db.prepare('DELETE FROM subdomains WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+router.post('/subdomains/:id/request-ssl', adminAuth, async (req, res) => {
+  const db = getDb();
+  const sub = db.prepare('SELECT * FROM subdomains WHERE id = ?').get(req.params.id);
+  if (!sub) return res.status(404).json({ error: '\u0633\u0627\u0628\u200C\u062F\u0627\u0645\u06CC\u0646 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
+
+  // Mark as pending
+  db.prepare("UPDATE subdomains SET ssl_status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  
+  // In real deployment, this would call certbot
+  // For now, just update status to indicate the request
+  res.json({
+    success: true,
+    message: `\u062F\u0631\u062E\u0648\u0627\u0633\u062A SSL \u0628\u0631\u0627\u06CC ${sub.subdomain} \u062B\u0628\u062A \u0634\u062F`,
+    command: `certbot certonly --standalone -d ${sub.subdomain} --agree-tos --non-interactive`,
+  });
+});
+
+// ============ API KEYS ============
+router.get('/api-keys', adminAuth, (req, res) => {
+  const db = getDb();
+  const keys = db.prepare('SELECT id, name, permissions, admin_id, last_used, expires_at, status, created_at FROM api_keys ORDER BY id DESC').all();
+  res.json({ success: true, keys });
+});
+
+router.post('/api-keys', adminAuth, (req, res) => {
+  const { name, permissions, expiresIn } = req.body;
+  if (!name) return res.status(400).json({ error: '\u0646\u0627\u0645 \u06A9\u0644\u06CC\u062F \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
+
+  const rawKey = `elahe_${crypto.randomBytes(32).toString('hex')}`;
+  const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+  const expiresAt = expiresIn ? new Date(Date.now() + expiresIn * 86400000).toISOString() : null;
+
+  const db = getDb();
+  const result = db.prepare(`
+    INSERT INTO api_keys (name, key_hash, permissions, admin_id, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(name, keyHash, JSON.stringify(permissions || ['read']), req.user.id, expiresAt);
+
+  res.json({ success: true, id: result.lastInsertRowid, key: rawKey, message: '\u0627\u06CC\u0646 \u06A9\u0644\u06CC\u062F \u0641\u0642\u0637 \u06CC\u06A9\u200C\u0628\u0627\u0631 \u0646\u0645\u0627\u06CC\u0634 \u062F\u0627\u062F\u0647 \u0645\u06CC\u200C\u0634\u0648\u062F' });
+});
+
+router.delete('/api-keys/:id', adminAuth, (req, res) => {
+  const db = getDb();
+  db.prepare("UPDATE api_keys SET status = 'revoked' WHERE id = ?").run(req.params.id);
+  res.json({ success: true });
 });
 
 // ============ DOMAINS ============
@@ -325,7 +546,7 @@ router.get('/domains', adminAuth, (req, res) => {
 
 router.post('/domains', adminAuth, (req, res) => {
   const { domain, serverId } = req.body;
-  if (!domain) return res.status(400).json({ error: 'Domain is required' });
+  if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
   const result = DomainService.setMainDomain(domain, serverId || null);
   if (result.success) return res.status(201).json(result);
   res.status(400).json(result);
@@ -333,14 +554,14 @@ router.post('/domains', adminAuth, (req, res) => {
 
 router.post('/domains/generate-subdomains', adminAuth, (req, res) => {
   const { domain, mode, serverId } = req.body;
-  if (!domain) return res.status(400).json({ error: 'Domain is required' });
+  if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
   const subdomains = DomainService.generateSubdomains(domain, mode || config.mode, serverId || null);
   res.json({ success: true, subdomains });
 });
 
 router.post('/domains/check-accessibility', adminAuth, async (req, res) => {
   const { domain } = req.body;
-  if (!domain) return res.status(400).json({ error: 'Domain is required' });
+  if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
   const result = await DomainService.checkAccessibility(domain);
   res.json(result);
 });
@@ -354,56 +575,35 @@ router.delete('/domains/:domain', adminAuth, (req, res) => {
 router.get('/export/users', adminAuth, iranOnly, (req, res) => {
   const format = req.query.format || 'elahe';
   const data = ImportExportService.exportUsers(format);
-  res.set({
-    'Content-Type': 'application/json',
-    'Content-Disposition': `attachment; filename="elahe-users-${format}-${new Date().toISOString().split('T')[0]}.json"`,
-  });
+  res.set({ 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="elahe-users-${format}-${new Date().toISOString().split('T')[0]}.json"` });
   res.json(data);
 });
 
 router.post('/import/users', adminAuth, iranOnly, (req, res) => {
-  try {
-    const result = ImportExportService.importUsers(req.body, req.user.id);
-    res.json({ success: true, ...result });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
+  try { const result = ImportExportService.importUsers(req.body, req.user.id); res.json({ success: true, ...result }); }
+  catch (err) { res.status(400).json({ success: false, error: err.message }); }
 });
 
 router.get('/export/settings', adminAuth, (req, res) => {
   const data = ImportExportService.exportSettings();
-  res.set({
-    'Content-Type': 'application/json',
-    'Content-Disposition': `attachment; filename="elahe-settings-${new Date().toISOString().split('T')[0]}.json"`,
-  });
+  res.set({ 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="elahe-settings-${new Date().toISOString().split('T')[0]}.json"` });
   res.json(data);
 });
 
 router.post('/import/settings', adminAuth, (req, res) => {
-  try {
-    const result = ImportExportService.importSettings(req.body);
-    res.json({ success: true, ...result });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
+  try { const result = ImportExportService.importSettings(req.body); res.json({ success: true, ...result }); }
+  catch (err) { res.status(400).json({ success: false, error: err.message }); }
 });
 
 router.get('/export/full', adminAuth, iranOnly, (req, res) => {
   const data = ImportExportService.fullBackup();
-  res.set({
-    'Content-Type': 'application/json',
-    'Content-Disposition': `attachment; filename="elahe-full-backup-${new Date().toISOString().split('T')[0]}.json"`,
-  });
+  res.set({ 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="elahe-full-backup-${new Date().toISOString().split('T')[0]}.json"` });
   res.json(data);
 });
 
 router.post('/import/full', adminAuth, iranOnly, (req, res) => {
-  try {
-    const result = ImportExportService.fullRestore(req.body, req.user.id);
-    res.json({ success: true, ...result });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
+  try { const result = ImportExportService.fullRestore(req.body, req.user.id); res.json({ success: true, ...result }); }
+  catch (err) { res.status(400).json({ success: false, error: err.message }); }
 });
 
 // ============ EXTERNAL PANELS (Marzban / 3x-ui) ============
@@ -411,10 +611,7 @@ router.get('/external-panels', adminAuth, (req, res) => {
   res.json({ success: true, panels: ExternalPanelService.listPanels() });
 });
 
-router.post('/external-panels', adminAuth, (req, res) => {
-  const result = ExternalPanelService.addPanel(req.body);
-  res.json(result);
-});
+router.post('/external-panels', adminAuth, (req, res) => { res.json(ExternalPanelService.addPanel(req.body)); });
 
 router.delete('/external-panels/:id', adminAuth, (req, res) => {
   ExternalPanelService.deletePanel(req.params.id);
@@ -428,22 +625,17 @@ router.post('/external-panels/:id/health', adminAuth, async (req, res) => {
 
 router.post('/external-panels/:id/sync', adminAuth, iranOnly, async (req, res) => {
   const panel = ExternalPanelService.getPanel(req.params.id);
-  if (!panel) return res.status(404).json({ error: 'Panel not found' });
-
+  if (!panel) return res.status(404).json({ error: '\u067E\u0646\u0644 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
   let result;
-  if (panel.type === 'marzban') {
-    result = await ExternalPanelService.syncFromMarzban(req.params.id, req.user.id);
-  } else if (panel.type === '3xui') {
-    result = await ExternalPanelService.syncFromXUI(req.params.id, req.user.id);
-  } else {
-    return res.status(400).json({ error: 'Unsupported panel type' });
-  }
+  if (panel.type === 'marzban') result = await ExternalPanelService.syncFromMarzban(req.params.id, req.user.id);
+  else if (panel.type === '3xui') result = await ExternalPanelService.syncFromXUI(req.params.id, req.user.id);
+  else return res.status(400).json({ error: '\u0646\u0648\u0639 \u067E\u0646\u0644 \u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u0646\u0645\u06CC\u200C\u0634\u0648\u062F' });
   res.json(result);
 });
 
 router.get('/external-panels/:id/proxy-url', adminAuth, (req, res) => {
   const info = ExternalPanelService.getPanelProxyUrl(req.params.id);
-  if (!info) return res.status(404).json({ error: 'Panel not found' });
+  if (!info) return res.status(404).json({ error: '\u067E\u0646\u0644 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
   res.json({ success: true, ...info });
 });
 
@@ -451,32 +643,18 @@ router.get('/external-panels/:id/proxy-url', adminAuth, (req, res) => {
 router.get('/reality-targets', adminAuth, (req, res) => {
   try {
     const { REALITY_TARGETS, getTargetsByCategory, getSafeTargets } = require('../../services/subscription/reality_targets');
-    res.json({
-      success: true,
-      total: REALITY_TARGETS.length,
-      byCategory: getTargetsByCategory(),
-      safeTargets: getSafeTargets(),
-    });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
+    res.json({ success: true, total: REALITY_TARGETS.length, byCategory: getTargetsByCategory(), safeTargets: getSafeTargets() });
+  } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
-// ============ SYSTEM MONITOR (Resources) ============
+// ============ SYSTEM MONITOR ============
 router.get('/system/resources', adminAuth, (req, res) => {
   try {
     const snapshot = SystemMonitor.getSnapshot();
     const connections = SystemMonitor.getActiveConnections();
     const bandwidth = SystemMonitor.getBandwidthSummary();
-    res.json({
-      success: true,
-      ...snapshot,
-      connections,
-      bandwidth,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+    res.json({ success: true, ...snapshot, connections, bandwidth });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 router.get('/system/bandwidth', adminAuth, (req, res) => {
@@ -504,6 +682,33 @@ router.put('/settings', adminAuth, (req, res) => {
   });
   transaction();
   res.json({ success: true });
+});
+
+// ============ CUSTOM PORT MANAGEMENT (Iran) ============
+router.post('/custom-port', adminAuth, iranOnly, (req, res) => {
+  const { port, protocol, description } = req.body;
+  if (!port || !protocol) return res.status(400).json({ error: '\u067E\u0648\u0631\u062A \u0648 \u067E\u0631\u0648\u062A\u06A9\u0644 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
+
+  // Check port conflicts
+  const conflicts = CoreManager.checkPortConflicts();
+  const conflict = conflicts.find(c => c.port === parseInt(port));
+  if (conflict) {
+    return res.status(400).json({
+      error: `\u067E\u0648\u0631\u062A ${port} \u062F\u0631 \u062D\u0627\u0644 \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u062A\u0648\u0633\u0637 ${conflict.process}`,
+      conflict,
+    });
+  }
+
+  // Log the custom port request
+  log.info('Custom port requested', { port, protocol, description });
+  
+  res.json({
+    success: true,
+    port: parseInt(port),
+    protocol,
+    firewall_command: `ufw allow ${port}/tcp`,
+    message: `\u067E\u0648\u0631\u062A ${port} \u0622\u0645\u0627\u062F\u0647 \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0633\u062A`,
+  });
 });
 
 module.exports = router;

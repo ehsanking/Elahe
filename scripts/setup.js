@@ -14,7 +14,7 @@ const ask = (q) => new Promise(resolve => rl.question(q, resolve));
 
 async function setup() {
   console.log('\n╔══════════════════════════════════════╗');
-  console.log('║      Elahe Panel v0.0.3 Setup        ║');
+  console.log('║      Elahe Panel v0.0.4 Setup        ║');
   console.log('║      Developer: EHSANKiNG             ║');
   console.log('╚══════════════════════════════════════╝\n');
 
