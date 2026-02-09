@@ -80,12 +80,51 @@ check_root() {
   fi
 }
 
+# ══════════════════ CONNECTIVITY CHECK ══════════════════
+
+check_github_access() {
+  # Test if GitHub is reachable (may be blocked in Iran)
+  log_info "بررسی دسترسی به GitHub..."
+  
+  if curl -sI --connect-timeout 8 --max-time 12 https://github.com 2>/dev/null | grep -qi 'HTTP'; then
+    log_ok "دسترسی به GitHub برقرار است"
+    GITHUB_ACCESSIBLE=true
+    return 0
+  fi
+  
+  log_warn "دسترسی مستقیم به GitHub ممکن نیست (احتمالاً فیلترینگ/تحریم)"
+  GITHUB_ACCESSIBLE=false
+  return 1
+}
+
+_retry_with_backoff() {
+  # Retry a command up to N times with exponential backoff
+  local max_attempts="$1"
+  shift
+  local attempt=1
+  local delay=2
+  
+  while [ $attempt -le $max_attempts ]; do
+    log_info "تلاش ${attempt} از ${max_attempts}..."
+    if "$@"; then
+      return 0
+    fi
+    if [ $attempt -lt $max_attempts ]; then
+      log_warn "ناموفق. انتظار ${delay} ثانیه قبل از تلاش مجدد..."
+      sleep $delay
+      delay=$((delay * 2))
+    fi
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
 # ══════════════════ RELEASE DETECTION ══════════════════
 
 fetch_latest_release() {
   # Try to get latest release from GitHub Releases API
   local release_info
-  release_info=$(curl -s --connect-timeout 10 "${GITHUB_API}/releases/latest" 2>/dev/null || echo "")
+  release_info=$(curl -s --connect-timeout 10 --max-time 20 "${GITHUB_API}/releases/latest" 2>/dev/null || echo "")
 
   if [ -n "$release_info" ] && echo "$release_info" | jq -e '.tag_name' &>/dev/null; then
     LATEST_TAG=$(echo "$release_info" | jq -r '.tag_name')
@@ -93,30 +132,30 @@ fetch_latest_release() {
     RELEASE_TARBALL=$(echo "$release_info" | jq -r '.tarball_url // empty')
     RELEASE_ZIPBALL=$(echo "$release_info" | jq -r '.zipball_url // empty')
     RELEASE_NOTES=$(echo "$release_info" | jq -r '.body // "No release notes"' | head -5)
-    log_ok "Latest release detected: ${LATEST_TAG} (${LATEST_VERSION})"
+    log_ok "آخرین نسخه شناسایی شد: ${LATEST_TAG} (${LATEST_VERSION})"
     return 0
   fi
 
   # Fallback: try tags API
   local tags_info
-  tags_info=$(curl -s --connect-timeout 10 "${GITHUB_API}/tags?per_page=1" 2>/dev/null || echo "")
+  tags_info=$(curl -s --connect-timeout 10 --max-time 20 "${GITHUB_API}/tags?per_page=1" 2>/dev/null || echo "")
   if [ -n "$tags_info" ] && echo "$tags_info" | jq -e '.[0].name' &>/dev/null; then
     LATEST_TAG=$(echo "$tags_info" | jq -r '.[0].name')
     LATEST_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
     RELEASE_TARBALL="${GITHUB_API}/tarball/${LATEST_TAG}"
     RELEASE_ZIPBALL="${GITHUB_API}/zipball/${LATEST_TAG}"
     RELEASE_NOTES=""
-    log_ok "Latest tag detected: ${LATEST_TAG}"
+    log_ok "آخرین تگ شناسایی شد: ${LATEST_TAG}"
     return 0
   fi
 
-  # No release or tag found - use main branch
+  # No release or tag found - use main branch tarball
   LATEST_TAG=""
   LATEST_VERSION="$VERSION"
-  RELEASE_TARBALL=""
-  RELEASE_ZIPBALL=""
+  RELEASE_TARBALL="${GITHUB_API}/tarball/main"
+  RELEASE_ZIPBALL="${GITHUB_API}/zipball/main"
   RELEASE_NOTES=""
-  log_warn "No GitHub release found. Will install from main branch."
+  log_warn "نسخه منتشرشده‌ای یافت نشد. از شاخه main دانلود می‌شود."
   return 1
 }
 
@@ -127,38 +166,76 @@ download_release() {
 
   # Try tarball first (smaller)
   if [ -n "${RELEASE_TARBALL:-}" ]; then
-    log_info "Downloading release ${LATEST_TAG} tarball..."
-    if curl -sL --connect-timeout 30 -o "${tmp_dir}/release.tar.gz" "$RELEASE_TARBALL" 2>/dev/null; then
-      log_info "Extracting release archive..."
-      tar -xzf "${tmp_dir}/release.tar.gz" -C "$tmp_dir" 2>/dev/null
-      # GitHub tarballs extract to a subfolder like owner-repo-hash/
-      local extracted_dir
-      extracted_dir=$(find "$tmp_dir" -maxdepth 1 -mindepth 1 -type d | head -1)
-      if [ -n "$extracted_dir" ] && [ -f "${extracted_dir}/package.json" ]; then
-        cp -a "${extracted_dir}"/* "${dest_dir}/" 2>/dev/null || true
-        cp -a "${extracted_dir}"/.* "${dest_dir}/" 2>/dev/null || true
-        rm -rf "$tmp_dir"
-        log_ok "Release ${LATEST_TAG} extracted successfully"
-        return 0
+    local tag_label="${LATEST_TAG:-main}"
+    log_info "دانلود آرشیو ${tag_label} از GitHub..."
+    if curl -L --connect-timeout 30 --max-time 120 --progress-bar -o "${tmp_dir}/release.tar.gz" "$RELEASE_TARBALL" 2>&1; then
+      local fsize
+      fsize=$(stat -c%s "${tmp_dir}/release.tar.gz" 2>/dev/null || echo "0")
+      if [ "$fsize" -gt 1000 ]; then
+        log_info "استخراج آرشیو... (${fsize} بایت)"
+        if tar -xzf "${tmp_dir}/release.tar.gz" -C "$tmp_dir" 2>&1; then
+          local extracted_dir
+          extracted_dir=$(find "$tmp_dir" -maxdepth 1 -mindepth 1 -type d | head -1)
+          if [ -n "$extracted_dir" ] && [ -f "${extracted_dir}/package.json" ]; then
+            cp -a "${extracted_dir}"/* "${dest_dir}/" 2>/dev/null || true
+            cp -a "${extracted_dir}"/.* "${dest_dir}/" 2>/dev/null || true
+            rm -rf "$tmp_dir"
+            log_ok "نسخه ${tag_label} با موفقیت استخراج شد"
+            return 0
+          else
+            log_warn "فایل package.json در آرشیو یافت نشد"
+          fi
+        else
+          log_warn "خطا در استخراج آرشیو tar.gz"
+        fi
+      else
+        log_warn "فایل دانلود شده خالی یا بسیار کوچک است (${fsize} بایت)"
       fi
+    else
+      log_warn "دانلود tarball ناموفق بود"
     fi
   fi
 
   # Try zipball
   if [ -n "${RELEASE_ZIPBALL:-}" ]; then
-    log_info "Downloading release ${LATEST_TAG} zipball..."
-    if curl -sL --connect-timeout 30 -o "${tmp_dir}/release.zip" "$RELEASE_ZIPBALL" 2>/dev/null; then
-      unzip -q "${tmp_dir}/release.zip" -d "$tmp_dir" 2>/dev/null
-      local extracted_dir
-      extracted_dir=$(find "$tmp_dir" -maxdepth 1 -mindepth 1 -type d | head -1)
-      if [ -n "$extracted_dir" ] && [ -f "${extracted_dir}/package.json" ]; then
-        cp -a "${extracted_dir}"/* "${dest_dir}/" 2>/dev/null || true
-        cp -a "${extracted_dir}"/.* "${dest_dir}/" 2>/dev/null || true
-        rm -rf "$tmp_dir"
-        log_ok "Release ${LATEST_TAG} extracted successfully"
-        return 0
+    log_info "تلاش برای دانلود zipball..."
+    if curl -L --connect-timeout 30 --max-time 120 --progress-bar -o "${tmp_dir}/release.zip" "$RELEASE_ZIPBALL" 2>&1; then
+      local fsize
+      fsize=$(stat -c%s "${tmp_dir}/release.zip" 2>/dev/null || echo "0")
+      if [ "$fsize" -gt 1000 ]; then
+        if unzip -q "${tmp_dir}/release.zip" -d "$tmp_dir" 2>&1; then
+          local extracted_dir
+          extracted_dir=$(find "$tmp_dir" -maxdepth 1 -mindepth 1 -type d | head -1)
+          if [ -n "$extracted_dir" ] && [ -f "${extracted_dir}/package.json" ]; then
+            cp -a "${extracted_dir}"/* "${dest_dir}/" 2>/dev/null || true
+            cp -a "${extracted_dir}"/.* "${dest_dir}/" 2>/dev/null || true
+            rm -rf "$tmp_dir"
+            log_ok "نسخه با موفقیت از zipball استخراج شد"
+            return 0
+          fi
+        fi
       fi
     fi
+    log_warn "دانلود zipball نیز ناموفق بود"
+  fi
+
+  # Try wget as alternative to curl
+  if command -v wget &>/dev/null && [ -n "${RELEASE_TARBALL:-}" ]; then
+    log_info "تلاش با wget..."
+    if wget --timeout=30 --tries=2 -q --show-progress -O "${tmp_dir}/release.tar.gz" "$RELEASE_TARBALL" 2>&1; then
+      if tar -xzf "${tmp_dir}/release.tar.gz" -C "$tmp_dir" 2>/dev/null; then
+        local extracted_dir
+        extracted_dir=$(find "$tmp_dir" -maxdepth 1 -mindepth 1 -type d | head -1)
+        if [ -n "$extracted_dir" ] && [ -f "${extracted_dir}/package.json" ]; then
+          cp -a "${extracted_dir}"/* "${dest_dir}/" 2>/dev/null || true
+          cp -a "${extracted_dir}"/.* "${dest_dir}/" 2>/dev/null || true
+          rm -rf "$tmp_dir"
+          log_ok "نسخه با موفقیت از طریق wget دانلود شد"
+          return 0
+        fi
+      fi
+    fi
+    log_warn "دانلود با wget نیز ناموفق بود"
   fi
 
   rm -rf "$tmp_dir"
@@ -168,86 +245,105 @@ download_release() {
 # ══════════════════ PROJECT SETUP (HANDLES EXISTING DIR) ══════════════════
 
 setup_project_files() {
-  # This function handles:
-  # 1. Fresh install to empty dir
-  # 2. Existing /opt/elahe with data (backup & update)
-  # 3. Failed previous clone
-  # 4. Download from latest release
+  # Strategy (ordered by priority):
+  #   1. Copy from local dev directory (sandbox/dev mode)
+  #   2. Download GitHub release tarball (no git needed, works with blocked git)
+  #   3. Git clone/pull (requires git access to GitHub)
+  #   4. Interactive alternative source (user provides URL or path)
 
   mkdir -p "$INSTALL_DIR" "$DATA_DIR" "$CERTS_DIR" "$LOGS_DIR"
 
-  # --- If copying from local dev directory ---
+  # ── Strategy 1: Copy from local dev directory ──
   if [ -d "/home/user/webapp" ] && [ -f "/home/user/webapp/package.json" ]; then
-    log_info "Copying from local development directory..."
-    # Backup existing data/config
+    log_info "کپی از دایرکتوری توسعه محلی..."
     _backup_existing_data
-    # Clean code files but preserve data
     _clean_code_files
     cp -a /home/user/webapp/* "$INSTALL_DIR/" 2>/dev/null || true
     cp -a /home/user/webapp/.gitignore "$INSTALL_DIR/" 2>/dev/null || true
-    # Restore data
     _restore_existing_data
-    log_ok "Project files copied from local directory"
+    log_ok "فایل‌های پروژه از دایرکتوری محلی کپی شد"
     return 0
   fi
 
-  # --- Try latest GitHub Release ---
-  log_info "Checking for latest release on GitHub..."
-  if fetch_latest_release; then
-    log_info "Found release: ${LATEST_TAG}"
-    # Backup existing data
+  # ── Check GitHub accessibility ──
+  check_github_access || true
+
+  # ── Strategy 2: Download release archive (preferred - works even if git is blocked) ──
+  log_info "بررسی آخرین نسخه در GitHub..."
+  fetch_latest_release || true  # Even if no release, RELEASE_TARBALL may be set to main branch tarball
+
+  if [ -n "${RELEASE_TARBALL:-}" ]; then
+    local tag_label="${LATEST_TAG:-main}"
+    log_info "تلاش برای دانلود آرشیو ${tag_label}..."
     _backup_existing_data
     _clean_code_files
 
-    if download_release "$INSTALL_DIR"; then
+    if _retry_with_backoff 2 download_release "$INSTALL_DIR"; then
       _restore_existing_data
-      log_ok "Installed from release ${LATEST_TAG}"
+      log_ok "نسخه ${tag_label} با موفقیت نصب شد (از طریق آرشیو)"
       return 0
     else
-      log_warn "Release download failed. Falling back to git clone..."
+      log_warn "دانلود آرشیو ناموفق بود. تلاش با git clone..."
+      _restore_existing_data
     fi
   fi
 
-  # --- Try git clone / pull ---
+  # ── Strategy 3: Git clone / pull ──
   if [ -d "$INSTALL_DIR/.git" ]; then
-    # Already a git repo - just pull
-    log_info "Existing git repository found. Pulling latest changes..."
+    log_info "مخزن git موجود یافت شد. دریافت آخرین تغییرات..."
     cd "$INSTALL_DIR"
-    git fetch origin 2>/dev/null || true
-    git reset --hard origin/main 2>/dev/null || git pull origin main 2>/dev/null || {
-      log_warn "Git pull failed. Trying fresh clone..."
-      _backup_existing_data
-      _clean_all_files
-      git clone "$GIT_REPO" "$INSTALL_DIR" 2>/dev/null || {
-        _try_alternative_source
-        return $?
-      }
-      _restore_existing_data
-    }
-    log_ok "Project updated from git"
-    return 0
+    if git fetch origin 2>&1; then
+      if git reset --hard origin/main 2>&1; then
+        log_ok "پروژه از git بروزرسانی شد"
+        return 0
+      fi
+    fi
+    log_warn "بروزرسانی git ناموفق بود. تلاش برای کلون مجدد..."
   fi
 
-  # Fresh clone - but directory might exist and not be empty
+  # Fresh clone
   if [ -d "$INSTALL_DIR" ] && [ "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
-    log_warn "Directory $INSTALL_DIR exists and is not empty."
     _backup_existing_data
     _clean_all_files
     mkdir -p "$INSTALL_DIR"
   fi
 
-  log_info "Cloning from repository..."
-  git clone "$GIT_REPO" "$INSTALL_DIR" 2>/dev/null || {
-    log_warn "Git clone failed."
-    _try_alternative_source
-    local ret=$?
-    _restore_existing_data
-    return $ret
-  }
+  if command -v git &>/dev/null; then
+    log_info "کلون کردن مخزن از ${GIT_REPO}..."
+    local clone_output
+    clone_output=$(git clone --depth 1 "$GIT_REPO" "$INSTALL_DIR" 2>&1) && {
+      _restore_existing_data
+      log_ok "مخزن با موفقیت کلون شد"
+      return 0
+    }
+    # Show the actual error to the user
+    log_err "کلون مخزن ناموفق بود:"
+    echo -e "  ${YELLOW}${clone_output}${NC}"
+    echo ""
 
+    # Diagnose common issues
+    if echo "$clone_output" | grep -qi 'resolve\|DNS\|name.*resolution'; then
+      log_warn "مشکل DNS: سرور نام دامنه github.com را پیدا نکرد."
+      log_info "راه‌حل: DNS سرور را به 8.8.8.8 یا 1.1.1.1 تغییر دهید:"
+      echo -e "  ${CYAN}echo 'nameserver 8.8.8.8' > /etc/resolv.conf${NC}"
+    elif echo "$clone_output" | grep -qi 'timed\|timeout\|refused\|reset'; then
+      log_warn "مشکل اتصال: دسترسی به GitHub مسدود یا کند است (احتمالاً فیلترینگ)."
+      log_info "از یکی از روش‌های جایگزین استفاده کنید."
+    elif echo "$clone_output" | grep -qi '403\|404\|not found'; then
+      log_warn "مخزن یافت نشد یا دسترسی محدود است."
+    elif echo "$clone_output" | grep -qi 'already exists'; then
+      log_warn "دایرکتوری مقصد خالی نیست."
+    fi
+    echo ""
+  else
+    log_warn "git نصب نیست. نمی‌توان از git clone استفاده کرد."
+  fi
+
+  # ── Strategy 4: Interactive alternative source ──
+  _try_alternative_source
+  local ret=$?
   _restore_existing_data
-  log_ok "Project cloned successfully"
-  return 0
+  return $ret
 }
 
 _backup_existing_data() {
@@ -257,14 +353,14 @@ _backup_existing_data() {
   local backup_tmp="/tmp/elahe-backup-${backup_ts}"
 
   if [ -f "$DATA_DIR/elahe.db" ] || [ -f "$ENV_FILE" ] || [ -d "$CERTS_DIR" ]; then
-    log_info "Backing up existing data..."
+    log_info "پشتیبان‌گیری از داده‌های موجود..."
     mkdir -p "$backup_tmp"
     [ -d "$DATA_DIR" ] && cp -a "$DATA_DIR" "$backup_tmp/data" 2>/dev/null || true
     [ -f "$ENV_FILE" ] && cp -a "$ENV_FILE" "$backup_tmp/.env" 2>/dev/null || true
     [ -d "$CERTS_DIR" ] && cp -a "$CERTS_DIR" "$backup_tmp/certs" 2>/dev/null || true
     [ -d "$LOGS_DIR" ] && cp -a "$LOGS_DIR" "$backup_tmp/logs" 2>/dev/null || true
     ELAHE_BACKUP_DIR="$backup_tmp"
-    log_ok "Data backed up to $backup_tmp"
+    log_ok "پشتیبان در $backup_tmp ذخیره شد"
   else
     ELAHE_BACKUP_DIR=""
   fi
@@ -272,13 +368,12 @@ _backup_existing_data() {
 
 _restore_existing_data() {
   if [ -n "${ELAHE_BACKUP_DIR:-}" ] && [ -d "${ELAHE_BACKUP_DIR}" ]; then
-    log_info "Restoring backed up data..."
+    log_info "بازیابی داده‌های پشتیبان..."
     [ -d "${ELAHE_BACKUP_DIR}/data" ] && cp -a "${ELAHE_BACKUP_DIR}/data" "$INSTALL_DIR/" 2>/dev/null || true
     [ -f "${ELAHE_BACKUP_DIR}/.env" ] && cp -a "${ELAHE_BACKUP_DIR}/.env" "$ENV_FILE" 2>/dev/null || true
     [ -d "${ELAHE_BACKUP_DIR}/certs" ] && cp -a "${ELAHE_BACKUP_DIR}/certs" "$INSTALL_DIR/" 2>/dev/null || true
     [ -d "${ELAHE_BACKUP_DIR}/logs" ] && cp -a "${ELAHE_BACKUP_DIR}/logs" "$INSTALL_DIR/" 2>/dev/null || true
-    log_ok "Data restored successfully"
-    # Clean up temp backup
+    log_ok "داده‌ها با موفقیت بازیابی شد"
     rm -rf "${ELAHE_BACKUP_DIR}"
   fi
 }
@@ -302,45 +397,129 @@ _clean_all_files() {
 }
 
 _try_alternative_source() {
-  log_warn "Could not download from primary source."
-  echo -e "${YELLOW}Options:${NC}"
-  echo "  1) Enter an alternative git URL"
-  echo "  2) Enter a local path to copy from"
-  echo "  3) Retry primary source"
-  echo "  4) Abort installation"
+  echo ""
+  log_warn "دانلود از منبع اصلی ناموفق بود."
+  echo ""
+  echo -e "${WHITE}══════════ روش‌های جایگزین نصب ══════════${NC}"
+  echo ""
+  echo -e "  ${CYAN}1)${NC} وارد کردن آدرس git جایگزین (مثلاً از mirrors)"
+  echo -e "  ${CYAN}2)${NC} وارد کردن مسیر محلی فایل‌های پروژه"
+  echo -e "  ${CYAN}3)${NC} دانلود مستقیم آرشیو از آدرس سفارشی"
+  echo -e "  ${CYAN}4)${NC} تلاش مجدد با منبع اصلی"
+  echo -e "  ${CYAN}5)${NC} لغو نصب"
+  echo ""
+  echo -e "${YELLOW}راهنما:${NC}"
+  echo -e "  اگر GitHub فیلتر است، می‌توانید آرشیو پروژه را با VPN دانلود کرده"
+  echo -e "  و سپس به سرور منتقل کنید (گزینه 2). یا از mirror استفاده کنید."
+  echo ""
   local choice
-  read -rp "$(echo -e "${MAGENTA}Choice [1]: ${NC}")" choice
-  choice="${choice:-1}"
+  read -rp "$(echo -e "${MAGENTA}انتخاب [4]: ${NC}")" choice
+  choice="${choice:-4}"
 
   case "$choice" in
     1)
       local alt_url
-      ask "Enter alternative git URL" "" alt_url
+      ask "آدرس git جایگزین" "" alt_url
       if [ -n "$alt_url" ]; then
         _clean_all_files
         mkdir -p "$INSTALL_DIR"
-        git clone "$alt_url" "$INSTALL_DIR" || { log_err "Clone failed"; return 1; }
-        return 0
+        log_info "کلون کردن از ${alt_url}..."
+        local clone_out
+        clone_out=$(git clone --depth 1 "$alt_url" "$INSTALL_DIR" 2>&1) && {
+          log_ok "کلون با موفقیت انجام شد"
+          return 0
+        }
+        log_err "کلون ناموفق بود: ${clone_out}"
+        return 1
       fi
       ;;
     2)
       local alt_path
-      ask "Enter local path" "" alt_path
+      ask "مسیر محلی فایل‌ها" "" alt_path
       if [ -n "$alt_path" ] && [ -d "$alt_path" ]; then
+        if [ ! -f "${alt_path}/package.json" ]; then
+          log_warn "فایل package.json در مسیر داده شده یافت نشد."
+          if ! ask_yn "ادامه بدون package.json؟" "n"; then
+            return 1
+          fi
+        fi
         _clean_all_files
         mkdir -p "$INSTALL_DIR"
         cp -a "$alt_path"/* "$INSTALL_DIR/" 2>/dev/null || true
+        cp -a "$alt_path"/.* "$INSTALL_DIR/" 2>/dev/null || true
+        log_ok "فایل‌ها از مسیر محلی کپی شد"
         return 0
+      else
+        log_err "مسیر '${alt_path}' معتبر نیست یا وجود ندارد"
+        return 1
       fi
       ;;
     3)
+      local archive_url
+      ask "آدرس دانلود آرشیو (tar.gz یا zip)" "" archive_url
+      if [ -n "$archive_url" ]; then
+        local tmp_dl
+        tmp_dl=$(mktemp -d)
+        log_info "دانلود از ${archive_url}..."
+        if curl -L --connect-timeout 30 --max-time 120 --progress-bar -o "${tmp_dl}/archive" "$archive_url" 2>&1; then
+          _clean_all_files
+          mkdir -p "$INSTALL_DIR"
+          # Detect format and extract
+          if file "${tmp_dl}/archive" 2>/dev/null | grep -qi 'zip'; then
+            unzip -q "${tmp_dl}/archive" -d "$tmp_dl" 2>/dev/null
+          else
+            tar -xzf "${tmp_dl}/archive" -C "$tmp_dl" 2>/dev/null || tar -xf "${tmp_dl}/archive" -C "$tmp_dl" 2>/dev/null
+          fi
+          local extracted_dir
+          extracted_dir=$(find "$tmp_dl" -maxdepth 1 -mindepth 1 -type d | head -1)
+          if [ -n "$extracted_dir" ] && [ -f "${extracted_dir}/package.json" ]; then
+            cp -a "${extracted_dir}"/* "$INSTALL_DIR/" 2>/dev/null || true
+            cp -a "${extracted_dir}"/.* "$INSTALL_DIR/" 2>/dev/null || true
+            log_ok "استخراج و کپی با موفقیت انجام شد"
+            rm -rf "$tmp_dl"
+            return 0
+          else
+            # Maybe files are directly in the archive (no subfolder)
+            if [ -f "${tmp_dl}/archive" ] && [ -f "${tmp_dl}/package.json" ]; then
+              cp -a "${tmp_dl}"/* "$INSTALL_DIR/" 2>/dev/null || true
+              log_ok "فایل‌ها کپی شد"
+              rm -rf "$tmp_dl"
+              return 0
+            fi
+            log_err "فایل package.json در آرشیو یافت نشد"
+          fi
+          rm -rf "$tmp_dl"
+        else
+          log_err "دانلود از آدرس داده شده ناموفق بود"
+        fi
+        return 1
+      fi
+      ;;
+    4)
+      log_info "تلاش مجدد با منبع اصلی..."
       _clean_all_files
       mkdir -p "$INSTALL_DIR"
-      git clone "$GIT_REPO" "$INSTALL_DIR" || { log_err "Clone failed again"; return 1; }
-      return 0
+      # Retry archive download first (more reliable than git in Iran)
+      RELEASE_TARBALL="${GITHUB_API}/tarball/main"
+      RELEASE_ZIPBALL="${GITHUB_API}/zipball/main"
+      LATEST_TAG="main"
+      if download_release "$INSTALL_DIR"; then
+        log_ok "دانلود آرشیو موفق بود"
+        return 0
+      fi
+      # Then try git clone
+      if command -v git &>/dev/null; then
+        local clone_out
+        clone_out=$(git clone --depth 1 "$GIT_REPO" "$INSTALL_DIR" 2>&1) && {
+          log_ok "کلون مجدد موفق بود"
+          return 0
+        }
+        log_err "تلاش مجدد ناموفق بود: ${clone_out}"
+      fi
+      return 1
       ;;
-    4|*)
-      log_err "Installation aborted."
+    5|*)
+      log_err "نصب لغو شد."
       return 1
       ;;
   esac
@@ -510,15 +689,15 @@ MIRROR_EOF
 install_all_packages() {
   local server_mode="$1"
   
-  log_info "Updating package lists..."
+  log_info "بروزرسانی لیست بسته‌ها..."
   $PKG_UPDATE 2>/dev/null || {
-    log_warn "Package update failed. Trying to continue..."
+    log_warn "بروزرسانی بسته‌ها ناموفق بود. ادامه می‌دهیم..."
   }
   
-  if ask_yn "Upgrade all system packages first?" "y"; then
-    log_info "Upgrading system..."
-    $PKG_UPGRADE 2>/dev/null || log_warn "Some packages failed to upgrade"
-    log_ok "System upgraded"
+  if ask_yn "بروزرسانی کلیه بسته‌های سیستم؟" "y"; then
+    log_info "بروزرسانی سیستم..."
+    $PKG_UPGRADE 2>/dev/null || log_warn "برخی بسته‌ها بروزرسانی نشدند"
+    log_ok "سیستم بروزرسانی شد"
   fi
   
   # Common packages for all modes
@@ -548,7 +727,7 @@ install_all_packages() {
   # Install Node.js
   install_nodejs
   
-  log_ok "All required packages installed"
+  log_ok "کلیه بسته‌های مورد نیاز نصب شد"
 }
 
 install_nodejs() {
@@ -559,7 +738,7 @@ install_nodejs() {
     return 0
   fi
   
-  log_info "Installing Node.js 20.x..."
+  log_info "نصب Node.js 20.x..."
   
   case "$PKG_MGR" in
     apt)
@@ -993,10 +1172,10 @@ do_install() {
   get_pkg_manager
   
   # Ask server mode
-  echo -e "${WHITE}════════════ Server Configuration ════════════${NC}"
+  echo -e "${WHITE}════════════ پیکربندی سرور ════════════${NC}"
   echo ""
-  echo -e "  ${CYAN}1)${NC} Iran Server (Edge/Camouflage)"
-  echo -e "  ${CYAN}2)${NC} Foreign Server (Upstream/DNS)"
+  echo -e "  ${CYAN}1)${NC} سرور ایران (Edge/استتار)"
+  echo -e "  ${CYAN}2)${NC} سرور خارج (Upstream/DNS)"
   echo ""
   local mode_choice
   ask "Select server type" "1" mode_choice
@@ -1007,51 +1186,58 @@ do_install() {
     *) SERVER_MODE="iran" ;;
   esac
   
-  log_info "Selected mode: ${GREEN}$SERVER_MODE${NC}"
+  log_info "حالت انتخاب شده: ${GREEN}$SERVER_MODE${NC}"
   echo ""
   
   # Install packages
-  echo -e "${WHITE}════════════ Package Installation ════════════${NC}"
+  echo -e "${WHITE}════════════ نصب بسته‌ها ════════════${NC}"
   install_all_packages "$SERVER_MODE"
   
   # Setup project
   echo ""
-  echo -e "${WHITE}════════════ Project Setup ════════════${NC}"
+  echo -e "${WHITE}════════════ راه‌اندازی پروژه ════════════${NC}"
   
   # Stop existing service if running (to avoid file locks)
   systemctl stop elahe 2>/dev/null || true
   
   setup_project_files || {
-    log_err "Failed to set up project files. Installation aborted."
+    log_err "راه‌اندازی فایل‌های پروژه ناموفق بود. نصب لغو شد."
+    echo ""
+    echo -e "${YELLOW}راهنمای عیب‌یابی:${NC}"
+    echo -e "  1. DNS سرور را بررسی کنید: ${CYAN}cat /etc/resolv.conf${NC}"
+    echo -e "  2. اتصال به GitHub را تست کنید: ${CYAN}curl -I https://github.com${NC}"
+    echo -e "  3. اگر GitHub فیلتر است، آرشیو را دستی دانلود کنید و با گزینه 2 نصب کنید."
+    echo -e "  4. برای تغییر DNS: ${CYAN}echo 'nameserver 8.8.8.8' > /etc/resolv.conf${NC}"
+    echo ""
     exit 1
   }
   
   cd "$INSTALL_DIR"
   
-  log_info "Installing Node.js dependencies..."
-  npm install --production 2>/dev/null || npm install 2>/dev/null || {
-    log_warn "npm install failed. Trying with registry mirror..."
-    ask "Enter npm registry mirror URL (e.g., https://registry.npmmirror.com)" "" npm_mirror
+  log_info "نصب وابستگی‌های Node.js..."
+  npm install --production 2>&1 || npm install 2>&1 || {
+    log_warn "نصب npm ناموفق بود. تلاش با mirror جایگزین..."
+    ask "آدرس رجیستری npm (مثلاً https://registry.npmmirror.com)" "" npm_mirror
     if [ -n "$npm_mirror" ]; then
       npm config set registry "$npm_mirror"
     fi
     npm install --production
   }
-  log_ok "Dependencies installed"
+  log_ok "وابستگی‌ها نصب شد"
   
   # Ensure directories exist after project setup
   mkdir -p "$DATA_DIR" "$CERTS_DIR" "$LOGS_DIR"
 
   # Configuration
   echo ""
-  echo -e "${WHITE}════════════ Configuration ════════════${NC}"
+  echo -e "${WHITE}════════════ پیکربندی ════════════${NC}"
   
   local ADMIN_USER ADMIN_PASS SERVER_PORT CORE_ENGINE
   ask "Admin username" "admin" ADMIN_USER
   ask "Admin password (leave empty for auto-generate)" "" ADMIN_PASS
   if [ -z "$ADMIN_PASS" ]; then
     ADMIN_PASS=$(openssl rand -hex 8 2>/dev/null || head -c 16 /dev/urandom | xxd -p | head -c 16)
-    log_info "Auto-generated admin password: ${GREEN}$ADMIN_PASS${NC}"
+    log_info "رمز عبور خودکار: ${GREEN}$ADMIN_PASS${NC}"
   fi
   
   ask "Server port" "3000" SERVER_PORT
@@ -1147,13 +1333,13 @@ ENVEOF
   fi
   
   # Initialize database
-  log_info "Initializing database..."
+  log_info "مقداردهی اولیه پایگاه داده..."
   cd "$INSTALL_DIR"
-  node -e "require('./src/database/migrate').migrate()" 2>/dev/null || {
-    log_warn "Database migration had issues. Trying again..."
+  node -e "require('./src/database/migrate').migrate()" 2>&1 || {
+    log_warn "مشکل در migration. تلاش مجدد..."
     node -e "require('./src/database/migrate').migrate()"
   }
-  log_ok "Database initialized"
+  log_ok "پایگاه داده آماده شد"
   
   # Create systemd service
   setup_systemd "$SERVER_MODE"
@@ -1197,9 +1383,9 @@ ENVEOF
   echo -e "${NC}"
   
   if [ "$PANEL_PROTO" = "http" ]; then
-    echo -e "${YELLOW}NOTE: Panel is running in HTTP mode.${NC}"
-    echo -e "${YELLOW}To enable HTTPS: run 'elahe set-domain' to configure SSL.${NC}"
-    echo -e "${YELLOW}After SSL setup, access via https://${MAIN_DOMAIN:-$SERVER_IP}:${SERVER_PORT}${NC}"
+    echo -e "${YELLOW}توجه: پنل در حالت HTTP اجرا می‌شود.${NC}"
+    echo -e "${YELLOW}برای فعال‌سازی HTTPS: 'elahe set-domain' را اجرا کنید.${NC}"
+    echo -e "${YELLOW}پس از تنظیم SSL: https://${MAIN_DOMAIN:-$SERVER_IP}:${SERVER_PORT}${NC}"
   fi
 }
 
@@ -1208,7 +1394,7 @@ setup_systemd() {
   local desc="Elahe Panel"
   [ "$mode" = "foreign" ] && desc="Elahe Panel (Foreign)"
   
-  log_info "Creating systemd service..."
+  log_info "ایجاد سرویس systemd..."
   cat > /etc/systemd/system/elahe.service << SVCEOF
 [Unit]
 Description=$desc
@@ -1232,7 +1418,7 @@ SVCEOF
   systemctl daemon-reload
   systemctl enable elahe 2>/dev/null
   systemctl start elahe
-  log_ok "Service created and started"
+  log_ok "سرویس ایجاد و اجرا شد"
 }
 
 setup_firewall() {
@@ -1240,7 +1426,7 @@ setup_firewall() {
   local port
   port=$(grep "^PORT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "3000")
   
-  log_info "Configuring firewall..."
+  log_info "پیکربندی فایروال..."
   
   if command -v ufw &>/dev/null; then
     ufw allow "$port/tcp" 2>/dev/null
@@ -1275,13 +1461,13 @@ setup_firewall() {
 }
 
 install_cli_command() {
-  log_info "Installing 'elahe' CLI command..."
+  log_info "نصب دستور 'elahe' در سیستم..."
   cat > /usr/local/bin/elahe << 'CLIEOF'
 #!/bin/bash
 exec bash /opt/elahe/scripts/elahe.sh "$@"
 CLIEOF
   chmod +x /usr/local/bin/elahe
-  log_ok "'elahe' command installed. Run 'elahe' from anywhere."
+  log_ok "دستور 'elahe' نصب شد. از هر جا قابل اجراست."
 }
 
 # ══════════════════ UPDATE ══════════════════
@@ -1295,7 +1481,7 @@ do_update() {
     exit 1
   fi
   
-  log_info "Checking for updates..."
+  log_info "بررسی بروزرسانی..."
   
   # Check current installed version
   local current_ver="unknown"
@@ -1304,7 +1490,7 @@ do_update() {
   elif [ -f "$INSTALL_DIR/package.json" ]; then
     current_ver=$(grep -o '"version": *"[^"]*"' "$INSTALL_DIR/package.json" | head -1 | cut -d'"' -f4)
   fi
-  log_info "Current version: ${current_ver}"
+  log_info "نسخه فعلی: ${current_ver}"
   
   # Fetch latest release
   if fetch_latest_release; then
@@ -1325,7 +1511,7 @@ do_update() {
     fi
   fi
   
-  log_info "Updating Elahe Panel..."
+  log_info "بروزرسانی Elahe Panel..."
   
   # Stop service during update
   systemctl stop elahe 2>/dev/null || true
