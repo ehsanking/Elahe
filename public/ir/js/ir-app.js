@@ -108,6 +108,7 @@ async function handleLogin(e) {
   const data = {
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
+    otp: document.getElementById('login-otp').value,
     captchaId: document.getElementById('login-captcha-id').value,
     captchaAnswer: document.getElementById('login-captcha').value,
   };
@@ -128,6 +129,9 @@ async function handleLogin(e) {
     } else {
       errorEl.textContent = result.error || '\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC \u06CC\u0627 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0627\u0634\u062A\u0628\u0627\u0647 \u0627\u0633\u062A';
       errorEl.style.display = 'block';
+      if (result.code === 'OTP_REQUIRED') {
+        document.getElementById('login-otp').focus();
+      }
       loadCaptcha('login');
     }
   } catch (err) {

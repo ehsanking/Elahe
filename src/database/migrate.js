@@ -359,6 +359,16 @@ function migrate(dbPath) {
     db.exec(`ALTER TABLE users ADD COLUMN client_info TEXT DEFAULT '{}'`);
   } catch (_) { /* column already exists */ }
 
+  try {
+    db.exec(`ALTER TABLE admins ADD COLUMN totp_secret TEXT`);
+  } catch (_) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE admins ADD COLUMN totp_enabled INTEGER DEFAULT 0`);
+  } catch (_) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE admins ADD COLUMN totp_verified_at DATETIME`);
+  } catch (_) { /* column already exists */ }
+
   // Create default admin if not exists
   const adminExists = db.prepare('SELECT COUNT(*) as count FROM admins').get();
   if (adminExists.count === 0) {
@@ -391,7 +401,7 @@ function migrate(dbPath) {
     'user.defaultTrafficLimit': String(config.userDefaults.trafficLimit),
     'user.defaultExpiryDays': String(config.userDefaults.expiryDays),
     'user.defaultMaxConnections': String(config.userDefaults.maxConnections),
-    'version': '0.0.4',
+    'version': '0.0.5',
   };
 
   const insertMany = db.transaction(() => {
@@ -400,6 +410,16 @@ function migrate(dbPath) {
     }
   });
   insertMany();
+
+  // Always update version and monitoring interval on migrations
+  db.prepare(`
+    INSERT OR REPLACE INTO settings (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `).run('version', '0.0.5');
+  db.prepare(`
+    INSERT OR REPLACE INTO settings (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `).run('tunnel.monitorInterval', String(config.tunnel.monitorInterval));
 
   console.log('[DB] Migration completed successfully');
   return db;

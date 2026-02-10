@@ -4,7 +4,7 @@
 
 **سیستم مدیریت تانل چند پروتکلی پیشرفته**
 
-نسخه: 0.0.4 | توسعه‌دهنده: EHSANKiNG
+نسخه: 0.0.5 | توسعه‌دهنده: EHSANKiNG
 
 [English](#english) | [فارسی](#فارسی)
 
@@ -151,6 +151,6 @@ MIT License - Copyright (c) 2024 EHSANKiNG
 
 <div align="center">
   
-**Elahe Panel v0.0.4** | توسعه‌دهنده: [EHSANKiNG](https://github.com/ehsanking)
+**Elahe Panel v0.0.5** | توسعه‌دهنده: [EHSANKiNG](https://github.com/ehsanking)
 
 </div>

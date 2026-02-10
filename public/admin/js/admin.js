@@ -3,7 +3,7 @@
  * Full-featured with Iran/Foreign mode + Persian localization
  * Includes: GeoRouting, Core Management, WARP, Content Blocking, Subdomain, API Keys
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const API = '/api/admin';
@@ -46,6 +46,8 @@ async function loadCapabilities() {
   document.getElementById('mode-badge').innerHTML = `\u062D\u0627\u0644\u062A: <strong style="color:${panelMode === 'iran' ? '#f59e0b' : '#3b82f6'}">${panelMode === 'iran' ? '\u0627\u06CC\u0631\u0627\u0646' : '\u062E\u0627\u0631\u062C'}</strong>`;
   if (!capabilities.createUsers) { const el = document.getElementById('user-actions-iran'); if (el) el.style.display = 'none'; }
   if (!capabilities.importExport) { const el = document.getElementById('nav-importexport'); if (el) el.style.display = 'none'; }
+  if (!capabilities.subdomainManagement) { const el = document.getElementById('nav-subdomains'); if (el) el.style.display = 'none'; }
+  if (!capabilities.manageDomains) { const el = document.getElementById('nav-domains'); if (el) el.style.display = 'none'; }
   if (capabilities.customPorts) { const el = document.getElementById('custom-port-card'); if (el) el.style.display = 'block'; }
 }
 
@@ -233,6 +235,8 @@ async function loadServers() {
     <span class="server-type badge badge-${s.type === 'iran' ? 'info' : 'success'}">${s.type === 'iran' ? '\u0627\u06CC\u0631\u0627\u0646' : '\u062E\u0627\u0631\u062C'}</span>
     <h3>${s.name}</h3><div class="server-ip mt-1">${s.ip}:${s.port}</div>
     <div class="server-meta"><span>\u0647\u0633\u062A\u0647: ${s.core_engine}</span><span>\u0648\u0636\u0639\u06CC\u062A: <span class="badge badge-${s.status === 'active' ? 'success' : 'warning'}">${s.status}</span></span></div>
+    <div class="server-meta"><span>\u062A\u0627\u062E\u06CC\u0631: ${s.latency_ms ? s.latency_ms + 'ms' : '-'}</span><span>\u062C\u06CC\u062A\u0631: ${s.jitter_ms ? s.jitter_ms + 'ms' : '-'}</span></div>
+    <div class="server-meta"><span>\u0622\u062E\u0631\u06CC\u0646 \u067E\u06CC\u0646\u06AF: ${s.last_ping ? new Date(s.last_ping).toLocaleString('fa-IR') : '-'}</span></div>
     <div class="flex gap-2 mt-2">
       <button class="btn btn-sm btn-outline" onclick="regenerateServerToken(${s.id})">\u062A\u0648\u06A9\u0646 \u062C\u062F\u06CC\u062F</button>
       <button class="btn btn-sm btn-danger" onclick="deleteServer(${s.id},'${s.name}')">\u062D\u0630\u0641</button>
@@ -249,8 +253,8 @@ function showAddServerModal() { openModal('\u0627\u0641\u0632\u0648\u062F\u0646 
     <button type="submit" class="btn btn-primary" style="width:100%">\u0627\u0641\u0632\u0648\u062F\u0646 \u0633\u0631\u0648\u0631</button>
   </form>`); }
 
-async function addServer(e) { e.preventDefault(); const data = { name: document.getElementById('as-name').value, type: document.getElementById('as-type').value, ip: document.getElementById('as-ip').value, port: parseInt(document.getElementById('as-port').value), coreEngine: document.getElementById('as-core').value }; const result = await api('/servers', { method: 'POST', body: JSON.stringify(data) }); if (result && result.success) { closeModal('genericModal'); loadServers(); alert(`\u0633\u0631\u0648\u0631 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F!\n\u062A\u0648\u06A9\u0646: ${result.connectionToken}`); } }
-async function regenerateServerToken(id) { if (!confirm('\u062A\u0648\u06A9\u0646 \u062C\u062F\u06CC\u062F \u0627\u06CC\u062C\u0627\u062F \u0634\u0648\u062F\u061F')) return; const r = await api(`/servers/${id}/regenerate-token`, { method: 'POST' }); if (r && r.success) { loadServers(); alert(`\u062A\u0648\u06A9\u0646 \u062C\u062F\u06CC\u062F: ${r.connectionToken}`); } }
+async function addServer(e) { e.preventDefault(); const data = { name: document.getElementById('as-name').value, type: document.getElementById('as-type').value, ip: document.getElementById('as-ip').value, port: parseInt(document.getElementById('as-port').value), coreEngine: document.getElementById('as-core').value }; const result = await api('/servers', { method: 'POST', body: JSON.stringify(data) }); if (result && result.success) { closeModal('genericModal'); loadServers(); alert(`\u0633\u0631\u0648\u0631 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F!\n\u06A9\u0644\u06CC\u062F \u0627\u062A\u0635\u0627\u0644: ${result.connectionToken}\n\u06A9\u0644\u06CC\u062F \u0627\u062D\u0631\u0627\u0632 \u0647\u0648\u06CC\u062A: ${result.authKey}`); } }
+async function regenerateServerToken(id) { if (!confirm('\u062A\u0648\u06A9\u0646 \u062C\u062F\u06CC\u062F \u0627\u06CC\u062C\u0627\u062F \u0634\u0648\u062F\u061F')) return; const r = await api(`/servers/${id}/regenerate-token`, { method: 'POST' }); if (r && r.success) { loadServers(); alert(`\u06A9\u0644\u06CC\u062F \u062C\u062F\u06CC\u062F: ${r.connectionToken}\n\u06A9\u0644\u06CC\u062F \u0627\u062D\u0631\u0627\u0632 \u0647\u0648\u06CC\u062A: ${r.authKey}`); } }
 async function deleteServer(id, name) { if (!confirm(`\u062D\u0630\u0641 \u0633\u0631\u0648\u0631 "${name}"\u061F`)) return; await api(`/servers/${id}`, { method: 'DELETE' }); loadServers(); }
 
 // ============ TUNNELS ============
@@ -522,10 +526,69 @@ async function loadSettings() {
     <h4 class="mb-2 mt-3">\u067E\u06CC\u0634\u200C\u0641\u0631\u0636 \u06A9\u0627\u0631\u0628\u0631\u0627\u0646</h4>
     <div class="form-group"><label>\u067E\u0644\u0646 \u067E\u06CC\u0634\u200C\u0641\u0631\u0636</label><select class="form-control" name="user.defaultPlan"><option value="bronze" ${settings['user.defaultPlan']==='bronze'?'selected':''}>\u0628\u0631\u0646\u0632\u06CC</option><option value="silver" ${settings['user.defaultPlan']==='silver'?'selected':''}>\u0646\u0642\u0631\u0647\u200C\u0627\u06CC</option><option value="gold" ${settings['user.defaultPlan']==='gold'?'selected':''}>\u0637\u0644\u0627\u06CC\u06CC</option></select></div>
     <div class="form-group"><label>\u0631\u0648\u0632 \u0627\u0646\u0642\u0636\u0627</label><input type="number" class="form-control" name="user.defaultExpiryDays" value="${settings['user.defaultExpiryDays']||'30'}"></div>
-    <div class="form-group"><label>\u062D\u062F\u0627\u06A9\u062B\u0631 \u0627\u062A\u0635\u0627\u0644</label><input type="number" class="form-control" name="user.defaultMaxConnections" value="${settings['user.defaultMaxConnections']||'2'}"></div></div></div>`;
+    <div class="form-group"><label>\u062D\u062F\u0627\u06A9\u062B\u0631 \u0627\u062A\u0635\u0627\u0644</label><input type="number" class="form-control" name="user.defaultMaxConnections" value="${settings['user.defaultMaxConnections']||'2'}"></div></div>
+    <div><h4 class="mb-2">\u0627\u0645\u0646\u06CC\u062A</h4>
+      <div class="card" style="padding:16px">
+        <div class="user-field"><span id="twofa-status-badge" class="badge badge-warning">\u062F\u0631 \u062D\u0627\u0644 \u0628\u0631\u0631\u0633\u06CC...</span><span class="user-field-label">2FA</span></div>
+        <div id="twofa-qr" class="mt-2" style="display:none">
+          <img id="twofa-qr-image" alt="2FA QR" style="max-width:180px;border-radius:8px">
+          <div class="mt-2" style="font-size:12px;color:#64748b;direction:ltr" id="twofa-secret"></div>
+        </div>
+        <div class="form-group mt-2"><label>\u06A9\u062F \u062A\u0627\u06CC\u06CC\u062F</label><input class="form-control" id="twofa-code" dir="ltr" placeholder="123456"></div>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline" onclick="setupTwoFactor()">\u062F\u0631\u06CC\u0627\u0641\u062A QR</button>
+          <button type="button" class="btn btn-sm btn-primary" onclick="enableTwoFactor()">\u0641\u0639\u0627\u0644\u200C\u0633\u0627\u0632\u06CC</button>
+          <button type="button" class="btn btn-sm btn-danger" onclick="disableTwoFactor()">\u063A\u06CC\u0631\u0641\u0639\u0627\u0644\u200C\u0633\u0627\u0632\u06CC</button>
+        </div>
+      </div>
+    </div></div>`;
   document.getElementById('settings-sections').innerHTML = html;
+  loadTwoFactorStatus();
 }
 async function saveSettings(e) { e.preventDefault(); const form=document.getElementById('settings-form'); const data={}; form.querySelectorAll('[name]').forEach(el=>{data[el.name]=el.value}); const r=await api('/settings',{method:'PUT',body:JSON.stringify(data)}); if(r&&r.success)alert('\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F!'); }
+
+// Two-factor authentication
+async function loadTwoFactorStatus() {
+  const data = await api('/security/2fa');
+  const badge = document.getElementById('twofa-status-badge');
+  if (!badge || !data) return;
+  if (data.enabled) {
+    badge.className = 'badge badge-success';
+    badge.textContent = '\u0641\u0639\u0627\u0644';
+  } else {
+    badge.className = 'badge badge-warning';
+    badge.textContent = '\u063A\u06CC\u0631\u0641\u0639\u0627\u0644';
+  }
+}
+
+async function setupTwoFactor() {
+  const data = await api('/security/2fa/setup', { method: 'POST' });
+  if (!data || !data.success) { alert(data?.error || '\u062E\u0637\u0627'); return; }
+  const qrWrap = document.getElementById('twofa-qr');
+  const qrImg = document.getElementById('twofa-qr-image');
+  const secret = document.getElementById('twofa-secret');
+  if (qrWrap && qrImg && secret) {
+    qrImg.src = data.qr;
+    secret.textContent = data.secret;
+    qrWrap.style.display = 'block';
+  }
+}
+
+async function enableTwoFactor() {
+  const otp = document.getElementById('twofa-code')?.value;
+  if (!otp) { alert('\u06A9\u062F \u062A\u0627\u06CC\u06CC\u062F \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F'); return; }
+  const data = await api('/security/2fa/enable', { method: 'POST', body: JSON.stringify({ otp }) });
+  if (data && data.success) { alert('\u062F\u0648\u0645\u0631\u062D\u0644\u0647\u200C\u0627\u06CC \u0641\u0639\u0627\u0644 \u0634\u062F'); loadTwoFactorStatus(); }
+  else { alert(data?.error || '\u062E\u0637\u0627'); }
+}
+
+async function disableTwoFactor() {
+  const otp = document.getElementById('twofa-code')?.value;
+  if (!otp) { alert('\u06A9\u062F \u062A\u0627\u06CC\u06CC\u062F \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F'); return; }
+  const data = await api('/security/2fa/disable', { method: 'POST', body: JSON.stringify({ otp }) });
+  if (data && data.success) { alert('\u062F\u0648\u0645\u0631\u062D\u0644\u0647\u200C\u0627\u06CC \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0634\u062F'); loadTwoFactorStatus(); }
+  else { alert(data?.error || '\u062E\u0637\u0627'); }
+}
 
 // Custom port management
 async function requestCustomPort() {
@@ -553,7 +616,20 @@ function formatBytes(bytes) {
 function copyText(text) { navigator.clipboard.writeText(text).then(() => alert('\u06A9\u067E\u06CC \u0634\u062F!')); }
 function escHtml(str) { if(!str)return''; const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
+function initTooltips() {
+  const applyTooltips = (root) => {
+    root.querySelectorAll('button, .sidebar-link, .btn').forEach(el => {
+      if (el.getAttribute('title')) return;
+      const label = (el.textContent || '').trim();
+      if (label) el.setAttribute('title', label);
+    });
+  };
+  applyTooltips(document);
+  const observer = new MutationObserver(() => applyTooltips(document));
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('click', e => { if (e.target === o) o.classList.remove('active'); }); });
 
 // ============ INIT ============
-if (checkAuth()) { loadCapabilities().then(() => loadDashboard()); }
+if (checkAuth()) { loadCapabilities().then(() => { loadDashboard(); initTooltips(); }); }

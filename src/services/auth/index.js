@@ -2,11 +2,12 @@
  * Elahe Panel - Authentication Service
  * Login works normally, Registration gives confusing errors
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const speakeasy = require('speakeasy');
 const { getDb } = require('../../database');
 const config = require('../../config/default');
 const { createLogger } = require('../../utils/logger');
@@ -21,6 +22,8 @@ const AUTH_MESSAGES = {
     tooManyAttempts: '\u062A\u0639\u062F\u0627\u062F \u062A\u0644\u0627\u0634\u200C\u0647\u0627 \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0645\u062C\u0627\u0632. \u0644\u0637\u0641\u0627\u064B \u0628\u0639\u062F\u0627\u064B \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.',
     invalidCaptcha: '\u06A9\u062F \u0627\u0645\u0646\u06CC\u062A\u06CC \u0627\u0634\u062A\u0628\u0627\u0647 \u0627\u0633\u062A',
     fieldsRequired: '\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0648 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A',
+    otpRequired: '\u06A9\u062F \u062F\u0648\u0645\u0631\u062D\u0644\u0647\u200C\u0627\u06CC \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A',
+    invalidOtp: '\u06A9\u062F \u062F\u0648\u0645\u0631\u062D\u0644\u0647\u200C\u0627\u06CC \u0646\u0627\u062F\u0631\u0633\u062A \u0627\u0633\u062A',
     serverError: '\u062E\u0637\u0627\u06CC \u0633\u0631\u0648\u0631. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.',
   },
   en: {
@@ -29,6 +32,8 @@ const AUTH_MESSAGES = {
     tooManyAttempts: 'Too many attempts. Please try again later.',
     invalidCaptcha: 'Invalid security code',
     fieldsRequired: 'Username and password are required',
+    otpRequired: 'Two-factor authentication code required',
+    invalidOtp: 'Invalid authentication code',
     serverError: 'Server error. Please try again.',
   },
 };
@@ -66,7 +71,7 @@ class AuthService {
   /**
    * Admin login
    */
-  static async adminLogin(username, password) {
+  static async adminLogin(username, password, otp) {
     const msg = getMessages();
     const db = getDb();
     const admin = db.prepare('SELECT * FROM admins WHERE username = ? AND status = ?').get(username, 'active');
@@ -80,6 +85,21 @@ class AuthService {
     if (!valid) {
       log.warn('Failed admin login - wrong password', { username });
       return { success: false, error: msg.invalidCredentials };
+    }
+
+    if (admin.totp_enabled) {
+      if (!otp) {
+        return { success: false, error: msg.otpRequired, code: 'OTP_REQUIRED' };
+      }
+      const otpValid = speakeasy.totp.verify({
+        secret: admin.totp_secret,
+        encoding: 'base32',
+        token: otp,
+        window: 1,
+      });
+      if (!otpValid) {
+        return { success: false, error: msg.invalidOtp, code: 'OTP_INVALID' };
+      }
     }
 
     // Update last login

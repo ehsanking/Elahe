@@ -46,7 +46,7 @@ class FRPTunnelEngine {
     };
 
     // In production, use openssl to generate real certs
-    // For v0.0.4, we generate placeholder config pointing to expected paths
+    // For v0.0.5, we generate placeholder config pointing to expected paths
     log.info('TLS cert paths configured for FRP', { tunnelId });
     return cert;
   }

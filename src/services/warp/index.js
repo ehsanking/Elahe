@@ -2,7 +2,7 @@
  * Elahe Panel - Cloudflare WARP Service
  * Manage WARP for bypassing specific sites
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const { getDb } = require('../../database');

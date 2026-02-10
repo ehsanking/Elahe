@@ -1,7 +1,7 @@
 /**
  * Elahe Panel - Captcha Service
  * Math-based CAPTCHA (replaces svg-captcha)
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const crypto = require('crypto');

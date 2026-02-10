@@ -2,7 +2,7 @@
  * Elahe Panel - GeoIP/Routing Rules Service
  * Integrates with https://github.com/chocolate4u/Iran-v2ray-rules
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const { getDb } = require('../../database');

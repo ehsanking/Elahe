@@ -66,6 +66,7 @@ async function handleLogin(e) {
       body: JSON.stringify({
         username: document.getElementById('login-username').value,
         password: document.getElementById('login-password').value,
+        otp: document.getElementById('login-otp').value,
         captchaId: document.getElementById('login-captcha-id').value,
         captchaAnswer: document.getElementById('login-captcha').value,
       }),
@@ -78,6 +79,9 @@ async function handleLogin(e) {
     } else {
       err.textContent = result.error || 'Invalid credentials';
       err.style.display = 'block';
+      if (result.code === 'OTP_REQUIRED') {
+        document.getElementById('login-otp').focus();
+      }
       loadCaptcha('login');
     }
   } catch (ex) {

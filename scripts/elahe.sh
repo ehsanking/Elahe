@@ -2,12 +2,12 @@
 # ══════════════════════════════════════════════════════════════
 # Elahe Panel - Unified Installer & Management CLI
 # Developer: EHSANKiNG
-# Version: 0.0.4
+# Version: 0.0.5
 # ══════════════════════════════════════════════════════════════
 
 set -euo pipefail
 
-VERSION="0.0.4"
+VERSION="0.0.5"
 INSTALL_DIR="/opt/elahe"
 DATA_DIR="$INSTALL_DIR/data"
 CERTS_DIR="$INSTALL_DIR/certs"
@@ -701,13 +701,13 @@ install_all_packages() {
   fi
   
   # Common packages for all modes
-  local COMMON_PKGS="curl wget git unzip jq openssl ca-certificates gnupg lsb-release"
+  local COMMON_PKGS="curl wget git unzip jq openssl ca-certificates gnupg lsb-release dnsutils net-tools nginx"
   
   # Iran-specific packages (extra tools for tunneling)
-  local IRAN_PKGS="$COMMON_PKGS build-essential python3 socat cron iptables net-tools dnsutils"
+  local IRAN_PKGS="$COMMON_PKGS build-essential python3 socat cron iptables"
   
-  # Foreign-specific packages (core + tunnel endpoints)
-  local FOREIGN_PKGS="$COMMON_PKGS build-essential python3 socat cron iptables net-tools dnsutils certbot"
+  # Foreign-specific packages (upstream + certbot)
+  local FOREIGN_PKGS="$COMMON_PKGS build-essential python3 socat cron certbot"
   
   local PKGS
   if [ "$server_mode" = "iran" ]; then
@@ -1243,24 +1243,18 @@ do_install() {
   ask "Server port" "3000" SERVER_PORT
   ask "Core engine (xray/singbox)" "xray" CORE_ENGINE
   
-  # Mode-specific config
-  local IR_TITLE="" IR_PRIMARY="#1a73e8" IR_SECONDARY="#34a853" IR_ACCENT="#fbbc04"
-  local EN_TITLE="CloudShield DNS" EN_PRIMARY="#0f172a" EN_SECONDARY="#3b82f6" EN_ACCENT="#10b981"
+  # Mode-specific config (defaults only - no color prompts)
+  local IR_TITLE="گذر تحریم" IR_PRIMARY="#1a73e8" IR_SECONDARY="#34a853" IR_ACCENT="#fbbc04"
+  local EN_TITLE="Linux Academy" EN_PRIMARY="#0f172a" EN_SECONDARY="#3b82f6" EN_ACCENT="#10b981"
   
   if [ "$SERVER_MODE" = "iran" ]; then
     echo ""
     echo -e "${WHITE}--- Iran Site Configuration (Camouflage) ---${NC}"
-    ask "Site title (Persian)" "گذر تحریم" IR_TITLE
-    ask "Primary color" "#1a73e8" IR_PRIMARY
-    ask "Secondary color" "#34a853" IR_SECONDARY
-    ask "Accent color" "#fbbc04" IR_ACCENT
+    log_info "Using default Iran camouflage theme"
   else
     echo ""
     echo -e "${WHITE}--- Foreign Site Configuration ---${NC}"
-    ask "Site title" "CloudShield DNS" EN_TITLE
-    ask "Primary color" "#0f172a" EN_PRIMARY
-    ask "Secondary color" "#3b82f6" EN_SECONDARY
-    ask "Accent color" "#10b981" EN_ACCENT
+    log_info "Using default Linux Academy camouflage theme"
   fi
   
   # Generate secrets
@@ -1281,7 +1275,7 @@ do_install() {
 
 ELAHE_MODE=${SERVER_MODE}
 PORT=${SERVER_PORT}
-HOST=0.0.0.0
+HOST=127.0.0.1
 
 # Security
 SESSION_SECRET=${SESSION_SECRET}
@@ -1341,6 +1335,9 @@ ENVEOF
   }
   log_ok "پایگاه داده آماده شد"
   
+  # Configure Nginx reverse proxy (public 443)
+  setup_nginx_proxy "$SERVER_PORT"
+  
   # Create systemd service
   setup_systemd "$SERVER_MODE"
   
@@ -1359,6 +1356,7 @@ ENVEOF
   if [ -f "${CERTS_DIR}/fullchain.pem" ] && [ -f "${CERTS_DIR}/privkey.pem" ]; then
     PANEL_PROTO="https"
   fi
+  local PUBLIC_PORT=443
   
   echo ""
   echo -e "${GREEN}"
@@ -1366,11 +1364,11 @@ ENVEOF
   echo "║           Installation Complete!                     ║"
   echo "╠══════════════════════════════════════════════════════╣"
   if [ -n "${MAIN_DOMAIN:-}" ]; then
-    echo "║  Panel:   ${PANEL_PROTO}://${MAIN_DOMAIN}:${SERVER_PORT}"
-    echo "║  Admin:   ${PANEL_PROTO}://${MAIN_DOMAIN}:${SERVER_PORT}/admin"
+    echo "║  Panel:   ${PANEL_PROTO}://${MAIN_DOMAIN}:${PUBLIC_PORT}"
+    echo "║  Admin:   ${PANEL_PROTO}://${MAIN_DOMAIN}:${PUBLIC_PORT}/admin"
   else
-    echo "║  Panel:   http://${SERVER_IP}:${SERVER_PORT}"
-    echo "║  Admin:   http://${SERVER_IP}:${SERVER_PORT}/admin"
+    echo "║  Panel:   ${PANEL_PROTO}://${SERVER_IP}:${PUBLIC_PORT}"
+    echo "║  Admin:   ${PANEL_PROTO}://${SERVER_IP}:${PUBLIC_PORT}/admin"
   fi
   echo "║  User:    ${ADMIN_USER}"
   echo "║  Pass:    ${ADMIN_PASS}"
@@ -1385,8 +1383,84 @@ ENVEOF
   if [ "$PANEL_PROTO" = "http" ]; then
     echo -e "${YELLOW}توجه: پنل در حالت HTTP اجرا می‌شود.${NC}"
     echo -e "${YELLOW}برای فعال‌سازی HTTPS: 'elahe set-domain' را اجرا کنید.${NC}"
-    echo -e "${YELLOW}پس از تنظیم SSL: https://${MAIN_DOMAIN:-$SERVER_IP}:${SERVER_PORT}${NC}"
+    echo -e "${YELLOW}پس از تنظیم SSL: https://${MAIN_DOMAIN:-$SERVER_IP}:${PUBLIC_PORT}${NC}"
   fi
+}
+
+setup_nginx_proxy() {
+  local app_port="$1"
+  log_info "پیکربندی Nginx..."
+
+  if [ ! -f "${CERTS_DIR}/fullchain.pem" ] || [ ! -f "${CERTS_DIR}/privkey.pem" ]; then
+    log_info "ساخت گواهی خودامضا برای Nginx..."
+    openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+      -subj "/CN=localhost" \
+      -keyout "${CERTS_DIR}/privkey.pem" \
+      -out "${CERTS_DIR}/fullchain.pem" 2>/dev/null || true
+  fi
+
+  local nginx_site="/etc/nginx/sites-available/elahe.conf"
+  if [ -d "/etc/nginx/sites-available" ]; then
+    cat > "$nginx_site" << EOF
+server {
+  listen 80;
+  server_name _;
+  return 301 https://\$host\$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name _;
+  ssl_certificate ${CERTS_DIR}/fullchain.pem;
+  ssl_certificate_key ${CERTS_DIR}/privkey.pem;
+  ssl_session_cache shared:SSL:10m;
+  ssl_session_timeout 10m;
+
+  location / {
+    proxy_pass http://127.0.0.1:${app_port};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+EOF
+    ln -sf "$nginx_site" /etc/nginx/sites-enabled/elahe.conf
+    rm -f /etc/nginx/sites-enabled/default
+  else
+    cat > /etc/nginx/conf.d/elahe.conf << EOF
+server {
+  listen 80;
+  server_name _;
+  return 301 https://\$host\$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name _;
+  ssl_certificate ${CERTS_DIR}/fullchain.pem;
+  ssl_certificate_key ${CERTS_DIR}/privkey.pem;
+
+  location / {
+    proxy_pass http://127.0.0.1:${app_port};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+EOF
+  fi
+
+  systemctl enable nginx 2>/dev/null
+  systemctl restart nginx
+  log_ok "Nginx آماده شد"
 }
 
 setup_systemd() {

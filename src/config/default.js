@@ -1,11 +1,14 @@
 /**
  * Elahe Panel - Default Configuration
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const path = require('path');
 const crypto = require('crypto');
+const dotenv = require('dotenv');
+
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 module.exports = {
   // Server mode: 'iran' or 'foreign'
@@ -14,7 +17,7 @@ module.exports = {
   // Server settings
   server: {
     host: process.env.HOST || '0.0.0.0',
-    port: parseInt(process.env.PORT) || 443,
+    port: parseInt(process.env.PORT) || 3000,
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     jwtSecret: process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex'),
     jwtExpiry: '24h',
@@ -43,8 +46,8 @@ module.exports = {
 
   // Foreign site configuration
   foreignSite: {
-    title: process.env.EN_TITLE || 'CloudShield DNS',
-    subtitle: process.env.EN_SUBTITLE || 'Enterprise DNS Security & Performance',
+    title: process.env.EN_TITLE || 'Linux Academy',
+    subtitle: process.env.EN_SUBTITLE || 'Hands-on Linux training, labs, and certification prep',
     primaryColor: process.env.EN_PRIMARY || '#0f172a',
     secondaryColor: process.env.EN_SECONDARY || '#3b82f6',
     accentColor: process.env.EN_ACCENT || '#10b981',
@@ -53,7 +56,7 @@ module.exports = {
 
   // Tunnel settings
   tunnel: {
-    monitorInterval: 10 * 60 * 1000, // 10 minutes
+    monitorInterval: 30 * 60 * 1000, // 30 minutes
     healthCheckTimeout: 5000, // 5 seconds
     maxRetries: 3,
     protocols: ['vless-reality', 'trusttunnel', 'wireguard', 'openvpn', 'vmess', 'trojan', 'shadowsocks', 'hysteria2'],
