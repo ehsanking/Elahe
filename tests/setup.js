@@ -9,6 +9,7 @@ const fs = require('fs');
 // Set test environment
 process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'error'; // Reduce log noise during tests
+process.env.ADMIN_PASS = process.env.ADMIN_PASS || 'test-admin-password';
 
 // Use a test database
 const testDbPath = path.join(__dirname, '../data/test-elahe.db');

@@ -1232,7 +1232,7 @@ do_install() {
   echo ""
   echo -e "${WHITE}════════════ پیکربندی ════════════${NC}"
   
-  local ADMIN_USER ADMIN_PASS SERVER_PORT CORE_ENGINE
+  local ADMIN_USER ADMIN_PASS CORE_ENGINE
   ask "Admin username" "admin" ADMIN_USER
   ask "Admin password (leave empty for auto-generate)" "" ADMIN_PASS
   if [ -z "$ADMIN_PASS" ]; then
@@ -1240,7 +1240,8 @@ do_install() {
     log_info "رمز عبور خودکار: ${GREEN}$ADMIN_PASS${NC}"
   fi
   
-  ask "Server port" "3000" SERVER_PORT
+  local SERVER_PORT=443
+  log_info "Server port fixed at 443 (SSL default)"
   ask "Core engine (xray/singbox)" "xray" CORE_ENGINE
   
   # Mode-specific config (defaults only - no color prompts)
@@ -1275,7 +1276,7 @@ do_install() {
 
 ELAHE_MODE=${SERVER_MODE}
 PORT=${SERVER_PORT}
-HOST=127.0.0.1
+HOST=0.0.0.0
 
 # Security
 SESSION_SECRET=${SESSION_SECRET}

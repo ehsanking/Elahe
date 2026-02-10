@@ -66,7 +66,7 @@ describe('Validation Middleware', () => {
       expect(errors.array()).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            param: 'username',
+            path: 'username',
           }),
         ])
       );
@@ -108,7 +108,7 @@ describe('Validation Middleware', () => {
       expect(errors.array()).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            param: 'otp',
+            path: 'otp',
           }),
         ])
       );

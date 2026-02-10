@@ -5,21 +5,32 @@
  */
 
 const path = require('path');
-const crypto = require('crypto');
 const dotenv = require('dotenv');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
+const mode = process.env.ELAHE_MODE || 'iran';
+const isProduction = process.env.NODE_ENV === 'production';
+const fallbackSecret = process.env.SESSION_SECRET || 'elahe-dev-session-secret-change-me';
+const fallbackJwtSecret = process.env.JWT_SECRET || 'elahe-dev-jwt-secret-change-me';
+
+if (!process.env.SESSION_SECRET && isProduction) {
+  console.warn('[SECURITY] SESSION_SECRET is not set. Using insecure fallback secret; set SESSION_SECRET immediately.');
+}
+if (!process.env.JWT_SECRET && isProduction) {
+  console.warn('[SECURITY] JWT_SECRET is not set. Using insecure fallback secret; set JWT_SECRET immediately.');
+}
+
 module.exports = {
   // Server mode: 'iran' or 'foreign'
-  mode: process.env.ELAHE_MODE || 'iran',
-  
+  mode,
+
   // Server settings
   server: {
     host: process.env.HOST || '0.0.0.0',
-    port: parseInt(process.env.PORT) || 3000,
-    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-    jwtSecret: process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex'),
+    port: parseInt(process.env.PORT) || 443,
+    secret: fallbackSecret,
+    jwtSecret: fallbackJwtSecret,
     jwtExpiry: '24h',
   },
 
@@ -31,7 +42,7 @@ module.exports = {
   // Admin defaults
   admin: {
     username: process.env.ADMIN_USER || 'admin',
-    password: process.env.ADMIN_PASS || 'admin',
+    password: process.env.ADMIN_PASS || null,
   },
 
   // Iran site configuration (camouflage)
@@ -65,11 +76,11 @@ module.exports = {
   // Protocol ports
   ports: {
     vless: 443,
-    trusttunnel: 8443,
+    trusttunnel: parseInt(process.env.TRUSTTUNNEL_PORT) || 8443,
     wireguard: [1414, 53133],
     openvpn: [110, 510],
     vmess: 8080,
-    trojan: 8443,
+    trojan: parseInt(process.env.TROJAN_PORT) || 8444,
     shadowsocks: 8388,
     hysteria2: 4433,
   },

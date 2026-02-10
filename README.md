@@ -22,7 +22,7 @@
 
 - **پشتیبانی از پروتکل‌های متعدد**: VLESS-Reality, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, OpenVPN, TrustTunnel
 - **پروتکل‌های XTLS**: RPRX-Direct, Vision, REALITY
-- **سیستم اتوپایلوت**: انتخاب خودکار بهترین تانل هر 10 دقیقه
+- **سیستم اتوپایلوت**: مانیتورینگ همه تانل‌ها هر 30 دقیقه (حالت all-active بدون سوییچ خودکار)
 - **مسیریابی GeoIP/GeoData**: ادغام با [Iran-v2ray-rules](https://github.com/chocolate4u/Iran-v2ray-rules) برای جلوگیری از ارسال ترافیک سایت‌های داخلی به خارج
 - **مدیریت هسته Xray/Sing-box**: نمایش نسخه‌ها، شروع/توقف/ریستارت، تشخیص تداخل پورت‌ها
 - **پشتیبانی WARP**: عبور از سایت‌ها با Cloudflare WARP
@@ -78,7 +78,7 @@ elahe uninstall        # حذف
 | WireGuard | 1414, 53133 | همیشه فعال |
 | OpenVPN | 110, 510 | همیشه فعال |
 | VMess | 8080 | - |
-| Trojan | 8443 | - |
+| Trojan | 8444 | - |
 | Shadowsocks | 8388 | - |
 | Hysteria2 | 4433 | - |
 
@@ -94,7 +94,7 @@ elahe uninstall        # حذف
 
 - Multi-protocol support (VLESS-Reality, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, OpenVPN)
 - XTLS native protocols: RPRX-Direct, Vision, REALITY
-- Autopilot tunnel management
+- Autopilot tunnel monitoring every 30 minutes (all-active mode without automatic switching)
 - GeoIP/GeoData routing with [Iran-v2ray-rules](https://github.com/chocolate4u/Iran-v2ray-rules) integration
 - Xray/Sing-box core management with version control
 - Cloudflare WARP support

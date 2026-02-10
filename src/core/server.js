@@ -65,12 +65,34 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
 // ============ SETTINGS MIDDLEWARE ============
+const SETTINGS_CACHE_TTL_MS = parseInt(process.env.SETTINGS_CACHE_TTL_MS || '30000');
+let settingsCache = {
+  data: {},
+  expiresAt: 0,
+};
+
+const loadSiteSettings = () => {
+  const now = Date.now();
+  if (settingsCache.expiresAt > now) {
+    return settingsCache.data;
+  }
+
+  const db = getDb();
+  const settings = db.prepare('SELECT * FROM settings').all();
+  const mapped = {};
+  settings.forEach(s => { mapped[s.key] = s.value; });
+
+  settingsCache = {
+    data: mapped,
+    expiresAt: now + SETTINGS_CACHE_TTL_MS,
+  };
+
+  return mapped;
+};
+
 app.use((req, res, next) => {
   try {
-    const db = getDb();
-    const settings = db.prepare('SELECT * FROM settings').all();
-    req.siteSettings = {};
-    settings.forEach(s => { req.siteSettings[s.key] = s.value; });
+    req.siteSettings = loadSiteSettings();
   } catch (e) {
     req.siteSettings = {};
   }
@@ -291,15 +313,51 @@ function detectSSL() {
 // port and redirect it to HTTPS to avoid "plain HTTP request sent to HTTPS port" errors.
 
 const HOST = config.server.host;
-const PORT = config.server.port;
+const PREFERRED_PORT = config.server.port;
 const sslInfo = detectSSL();
 const redirectHttp = (config.ssl || {}).redirectHttp !== false;
+
+const parseFallbackPorts = () => {
+  const raw = (process.env.PORT_FALLBACKS || '8443,3000')
+    .split(',')
+    .map(v => parseInt(v.trim(), 10))
+    .filter(v => Number.isInteger(v) && v > 0 && v <= 65535);
+
+  return Array.from(new Set(raw.filter(p => p !== PREFERRED_PORT)));
+};
+
+const checkPortAvailable = (port) => new Promise((resolve) => {
+  const tester = net.createServer();
+  tester.once('error', (err) => {
+    resolve({ available: false, code: err.code || 'UNKNOWN' });
+  });
+  tester.once('listening', () => {
+    tester.close(() => resolve({ available: true }));
+  });
+  tester.listen(port, HOST);
+});
+
+const resolveRuntimePort = async () => {
+  const candidates = [PREFERRED_PORT, ...parseFallbackPorts()];
+  for (const candidate of candidates) {
+    const result = await checkPortAvailable(candidate);
+    if (result.available) {
+      if (candidate !== PREFERRED_PORT) {
+        log.warn(`Preferred port ${PREFERRED_PORT} unavailable. Falling back to ${candidate}`);
+      }
+      return candidate;
+    }
+    log.warn(`Port ${candidate} is not available`, { code: result.code });
+  }
+
+  throw new Error(`No available port found. Tried: ${candidates.join(', ')}`);
+};
 
 const buildRedirectApp = () => {
   const redirectApp = express();
   redirectApp.use((req, res) => {
     const host = (req.headers.host || '').replace(/:\d+$/, '');
-    const portSuffix = (PORT === 443) ? '' : `:${PORT}`;
+    const portSuffix = (runtimePort === 443) ? '' : `:${runtimePort}`;
     res.redirect(301, `https://${host}${portSuffix}${req.url}`);
   });
   return redirectApp;
@@ -315,6 +373,7 @@ const buildUpgradeRequiredApp = () => {
 
 let mainServer;
 let httpsServer;
+let runtimePort = PREFERRED_PORT;
 
 if (sslInfo.available) {
   // ── HTTPS MODE ──
@@ -361,7 +420,7 @@ if (sslInfo.available) {
   const httpFallbackApp = redirectHttp ? buildRedirectApp() : buildUpgradeRequiredApp();
   const httpFallbackServer = http.createServer(httpFallbackApp);
 
-  const allowHttpOnHttpsPort = PORT === 443 || (config.ssl || {}).allowHttpOnHttpsPort === true;
+  const allowHttpOnHttpsPort = runtimePort === 443 || (config.ssl || {}).allowHttpOnHttpsPort === true;
   if (allowHttpOnHttpsPort) {
     mainServer = net.createServer((socket) => {
       socket.once('data', (buffer) => {
@@ -387,7 +446,7 @@ if (sslInfo.available) {
       log.info(`HTTP→HTTPS redirect active on port ${httpRedirectPort}`);
     }).on('error', (err) => {
       if (err.code === 'EACCES') {
-        log.info(`Cannot bind port ${httpRedirectPort} (not root). Use: http://domain:${PORT} → auto-redirects not available`);
+        log.info(`Cannot bind port ${httpRedirectPort} (not root). Use: http://domain:${runtimePort} → auto-redirects not available`);
       } else if (err.code === 'EADDRINUSE') {
         log.info(`Port ${httpRedirectPort} already in use, HTTP redirect skipped`);
       }
@@ -400,37 +459,46 @@ if (sslInfo.available) {
 }
 
 // Start the main server
-mainServer.listen(PORT, HOST, async () => {
-  const protocol = sslInfo.available ? 'https' : 'http';
-  
-  log.info(`Elahe Panel v0.0.5 started`, {
-    mode: config.mode,
-    protocol,
-    address: `${protocol}://${HOST}:${PORT}`,
-    admin: `${protocol}://${HOST}:${PORT}/admin`,
-  });
-  log.info(`Developer: EHSANKiNG`);
-  log.info(`Mode: ${config.mode === 'iran' ? 'Iran (Camouflage)' : 'Foreign (DNS Provider)'}`);
-
-  if (sslInfo.available) {
-    log.info(`HTTPS enabled on port ${PORT} (cert: ${sslInfo.certPath})`);
-    log.info(`Access: https://YOUR_DOMAIN:${PORT}`);
-  } else {
-    log.info(`HTTP mode: ${sslInfo.reason}`);
-    log.info(`Access: http://YOUR_IP:${PORT}`);
-    log.info(`To enable HTTPS: install SSL certs and restart (elahe set-domain)`);
-  }
-
-  // Initialize Autopilot Tunnel Management
+(async () => {
   try {
-    const autopilotStatus = await autopilotService.initialize();
-    log.info('Autopilot initialized', {
-      primary443: autopilotStatus.primary443,
-      alwaysOn: Object.keys(autopilotStatus.portAllocation?.alwaysOn || {}),
+    runtimePort = await resolveRuntimePort();
+
+    mainServer.listen(runtimePort, HOST, async () => {
+      const protocol = sslInfo.available ? 'https' : 'http';
+
+      log.info(`Elahe Panel v0.0.5 started`, {
+        mode: config.mode,
+        protocol,
+        address: `${protocol}://${HOST}:${runtimePort}`,
+        admin: `${protocol}://${HOST}:${runtimePort}/admin`,
+      });
+      log.info(`Developer: EHSANKiNG`);
+      log.info(`Mode: ${config.mode === 'iran' ? 'Iran (Camouflage)' : 'Foreign (DNS Provider)'}`);
+
+      if (sslInfo.available) {
+        log.info(`HTTPS enabled on port ${runtimePort} (cert: ${sslInfo.certPath})`);
+        log.info(`Access: https://YOUR_DOMAIN:${runtimePort}`);
+      } else {
+        log.info(`HTTP mode: ${sslInfo.reason}`);
+        log.info(`Access: http://YOUR_IP:${runtimePort}`);
+        log.info(`To enable HTTPS: install SSL certs and restart (elahe set-domain)`);
+      }
+
+      // Initialize Autopilot Tunnel Management
+      try {
+        const autopilotStatus = await autopilotService.initialize();
+        log.info('Autopilot initialized', {
+          primary443: autopilotStatus.primary443,
+          alwaysOn: Object.keys(autopilotStatus.portAllocation?.alwaysOn || {}),
+        });
+      } catch (err) {
+        log.error('Autopilot initialization failed', { error: err.message });
+      }
     });
   } catch (err) {
-    log.error('Autopilot initialization failed', { error: err.message });
+    log.error('Server startup failed due to port conflict', { error: err.message, preferredPort: PREFERRED_PORT });
+    process.exit(1);
   }
-});
+})();
 
 module.exports = app;

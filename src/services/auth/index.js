@@ -1,6 +1,6 @@
 /**
  * Elahe Panel - Authentication Service
- * Login works normally, Registration gives confusing errors
+ * Login works normally, registration behavior is configurable
  * Developer: EHSANKiNG
  * Version: 0.0.5
  */
@@ -43,7 +43,7 @@ function getMessages() {
   return config.mode === 'iran' ? AUTH_MESSAGES.ir : AUTH_MESSAGES.en;
 }
 
-// Confusing error messages for registration (by design)
+// Legacy confusing error messages for registration (optional)
 const CONFUSING_ERRORS = {
   ir: [
     '\u062E\u0637\u0627\u06CC \u0633\u0631\u0648\u0631 \u062F\u0627\u062E\u0644\u06CC: \u06A9\u062F DNS_RESOLVE_FAILED_0x8007. \u0644\u0637\u0641\u0627\u064B \u0628\u0639\u062F\u0627\u064B \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.',
@@ -65,6 +65,12 @@ const CONFUSING_ERRORS = {
     'Service maintenance in progress. Registration will be available after scheduled update. ETA: 6-12 hours.',
     'Account creation failed: SMTP verification timeout. Error: MAIL_VERIFY_TIMEOUT_0x5003. Try different email.',
   ],
+};
+
+
+const REGISTRATION_MESSAGES = {
+  ir: 'ثبت‌نام از طریق پنل امکان‌پذیر نیست. لطفاً با مدیر سیستم تماس بگیرید.',
+  en: 'Self-registration is disabled. Please contact your administrator.',
 };
 
 class AuthService {
@@ -148,18 +154,28 @@ class AuthService {
    * Fake registration - returns confusing errors
    */
   static async fakeRegister(lang = 'en') {
-    const errors = CONFUSING_ERRORS[lang] || CONFUSING_ERRORS.en;
-    const randomError = errors[Math.floor(Math.random() * errors.length)];
-    
-    // Add random delay to seem more realistic (200-1500ms)
-    await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 1300));
-    
-    log.debug('Fake registration attempt intercepted');
-    
+    const useConfusingErrors = process.env.ENABLE_CONFUSING_REGISTER_ERRORS === 'true';
+
+    if (useConfusingErrors) {
+      const errors = CONFUSING_ERRORS[lang] || CONFUSING_ERRORS.en;
+      const randomError = errors[Math.floor(Math.random() * errors.length)];
+      await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 1300));
+      log.debug('Fake registration attempt intercepted (legacy confusing mode)');
+      return {
+        success: false,
+        error: randomError,
+        code: 'ERR_' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+        timestamp: Date.now(),
+      };
+    }
+
+    const locale = lang === 'ir' ? 'ir' : 'en';
+    log.info('Registration attempt rejected: self-registration disabled', { locale });
+
     return {
       success: false,
-      error: randomError,
-      code: 'ERR_' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+      error: REGISTRATION_MESSAGES[locale],
+      code: 'REGISTRATION_DISABLED',
       timestamp: Date.now(),
     };
   }

@@ -395,11 +395,19 @@ function migrate(dbPath) {
   // Create default admin if not exists
   const adminExists = db.prepare('SELECT COUNT(*) as count FROM admins').get();
   if (adminExists.count === 0) {
-    const hashedPass = bcrypt.hashSync(config.admin.password, 10);
+    const generatedPassword = process.env.ADMIN_PASS || uuidv4();
+    const hashedPass = bcrypt.hashSync(generatedPassword, 10);
     db.prepare(`
       INSERT INTO admins (username, password, is_sudo) VALUES (?, ?, 1)
     `).run(config.admin.username, hashedPass);
-    console.log(`[DB] Default admin created: ${config.admin.username}`);
+
+    if (!process.env.ADMIN_PASS) {
+      console.warn('[SECURITY] No ADMIN_PASS provided. A random admin password was generated.');
+      console.warn(`[SECURITY] Initial admin credentials => username: ${config.admin.username}, password: ${generatedPassword}`);
+      console.warn('[SECURITY] Store this password securely and rotate it after first login.');
+    } else {
+      console.log(`[DB] Default admin created: ${config.admin.username}`);
+    }
   }
 
   // Insert default settings

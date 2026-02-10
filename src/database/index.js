@@ -10,6 +10,10 @@ const path = require('path');
 
 let db = null;
 
+async function initDatabase() {
+  return getDb();
+}
+
 function getDb() {
   if (!db) {
     // Ensure data directory exists
@@ -30,4 +34,4 @@ function closeDb() {
   }
 }
 
-module.exports = { getDb, closeDb };
+module.exports = { getDb, closeDb, initDatabase };

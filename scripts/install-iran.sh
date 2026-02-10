@@ -180,8 +180,8 @@ echo -e "${YELLOW}[6/8] Configuring...${NC}"
 if [ ! -f "$INSTALL_DIR/.env" ]; then
   cat > "$INSTALL_DIR/.env" << EOF
 ELAHE_MODE=iran
-PORT=3000
-HOST=127.0.0.1
+PORT=443
+HOST=0.0.0.0
 ADMIN_USER=admin
 ADMIN_PASS=$(openssl rand -hex 8)
 CORE_ENGINE=xray
@@ -202,78 +202,27 @@ fi
 mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/certs" "$INSTALL_DIR/logs"
 node -e "require('./src/database/migrate').migrate()"
 
-# Configure Nginx reverse proxy
-echo -e "${YELLOW}[7/8] Configuring Nginx...${NC}"
-APP_PORT=3000
+# Configure direct SSL on Elahe (port 443) and resolve port conflicts
+echo -e "${YELLOW}[7/8] Preparing SSL and port 443...${NC}"
 if [ ! -f "$INSTALL_DIR/certs/fullchain.pem" ] || [ ! -f "$INSTALL_DIR/certs/privkey.pem" ]; then
   echo -e "${YELLOW}[INFO] Generating self-signed certificate...${NC}"
-  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-    -subj "/CN=localhost" \
-    -keyout "$INSTALL_DIR/certs/privkey.pem" \
-    -out "$INSTALL_DIR/certs/fullchain.pem" 2>/dev/null
+  openssl req -x509 -nodes -newkey rsa:2048 -days 365     -subj "/CN=localhost"     -keyout "$INSTALL_DIR/certs/privkey.pem"     -out "$INSTALL_DIR/certs/fullchain.pem" 2>/dev/null
 fi
 
-NGINX_SITE="/etc/nginx/sites-available/elahe.conf"
-if [ -d "/etc/nginx/sites-available" ]; then
-  cat > "$NGINX_SITE" << EOF
-server {
-  listen 80;
-  server_name _;
-  return 301 https://\$host\$request_uri;
-}
+# Stop common services that may occupy 443
+systemctl stop nginx 2>/dev/null || true
+systemctl disable nginx 2>/dev/null || true
+systemctl stop apache2 2>/dev/null || true
+systemctl stop httpd 2>/dev/null || true
+systemctl stop caddy 2>/dev/null || true
 
-server {
-  listen 443 ssl http2;
-  server_name _;
-  ssl_certificate $INSTALL_DIR/certs/fullchain.pem;
-  ssl_certificate_key $INSTALL_DIR/certs/privkey.pem;
-  ssl_session_cache shared:SSL:10m;
-  ssl_session_timeout 10m;
-
-  location / {
-    proxy_pass http://127.0.0.1:$APP_PORT;
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection "upgrade";
-  }
-}
-EOF
-  ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/elahe.conf
-  rm -f /etc/nginx/sites-enabled/default
-else
-  cat > /etc/nginx/conf.d/elahe.conf << EOF
-server {
-  listen 80;
-  server_name _;
-  return 301 https://\$host\$request_uri;
-}
-
-server {
-  listen 443 ssl http2;
-  server_name _;
-  ssl_certificate $INSTALL_DIR/certs/fullchain.pem;
-  ssl_certificate_key $INSTALL_DIR/certs/privkey.pem;
-
-  location / {
-    proxy_pass http://127.0.0.1:$APP_PORT;
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection "upgrade";
-  }
-}
-EOF
+# Verify port 443 is free
+if ss -ltn | awk '{print $4}' | grep -qE '(^|:)443$'; then
+  echo -e "${RED}[ERROR] Port 443 is still in use. Please release it and rerun installer.${NC}"
+  ss -ltnp | grep ':443' || true
+  exit 1
 fi
 
-systemctl enable nginx
-systemctl restart nginx
 
 # Setup systemd service
 echo -e "${YELLOW}[8/8] Creating systemd service...${NC}"
