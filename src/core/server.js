@@ -8,6 +8,7 @@
 const express = require('express');
 const http = require('http');
 const https = require('https');
+const net = require('net');
 const fs = require('fs');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -233,26 +234,41 @@ function detectSSL() {
 
 // ============ START SERVER ============
 //
-// Architecture (simple and robust):
-//   - If SSL certs exist:  HTTPS on PORT (e.g. 3000), HTTP→HTTPS redirect on port 80
-//   - If no SSL certs:     HTTP on PORT (e.g. 3000)
+// Architecture:
+//   - If SSL certs exist:  HTTPS on PORT, optional HTTP→HTTPS redirect on port 80
+//   - If no SSL certs:     HTTP on PORT
 //
-// This avoids the fragile dual-protocol-on-one-port approach which causes
-// SSL_ERROR_RX_RECORD_TOO_LONG when TLS handshake fails.
-//
-// Access patterns:
-//   WITH certs:    https://domain:3000 ✓  |  http://domain:80 → redirect to HTTPS
-//   WITHOUT certs: http://domain:3000 ✓   |  https://domain:3000 → connection refused (clear error)
+// When SSL is enabled on port 443, we also accept plain HTTP on the same
+// port and redirect it to HTTPS to avoid "plain HTTP request sent to HTTPS port" errors.
 
 const HOST = config.server.host;
 const PORT = config.server.port;
 const sslInfo = detectSSL();
+const redirectHttp = (config.ssl || {}).redirectHttp !== false;
+
+const buildRedirectApp = () => {
+  const redirectApp = express();
+  redirectApp.use((req, res) => {
+    const host = (req.headers.host || '').replace(/:\d+$/, '');
+    const portSuffix = (PORT === 443) ? '' : `:${PORT}`;
+    res.redirect(301, `https://${host}${portSuffix}${req.url}`);
+  });
+  return redirectApp;
+};
+
+const buildUpgradeRequiredApp = () => {
+  const upgradeApp = express();
+  upgradeApp.use((req, res) => {
+    res.status(426).send('HTTPS required');
+  });
+  return upgradeApp;
+};
 
 let mainServer;
+let httpsServer;
 
 if (sslInfo.available) {
   // ── HTTPS MODE ──
-  // Main server is HTTPS on PORT
   const sslOptions = {
     cert: sslInfo.cert,
     key: sslInfo.key,
@@ -267,7 +283,7 @@ if (sslInfo.available) {
     ].join(':'),
   };
 
-  mainServer = https.createServer(sslOptions, app);
+  httpsServer = https.createServer(sslOptions, app);
 
   // Auto-reload certificates when they change (e.g. certbot renewal)
   let certReloadTimer = null;
@@ -280,7 +296,7 @@ if (sslInfo.available) {
             const newCert = fs.readFileSync(sslInfo.certPath, 'utf8');
             const newKey = fs.readFileSync(sslInfo.keyPath, 'utf8');
             if (newCert && newKey && newCert.length > 100 && newKey.length > 100) {
-              mainServer.setSecureContext({ cert: newCert, key: newKey });
+              httpsServer.setSecureContext({ cert: newCert, key: newKey });
               log.info('SSL certificates reloaded successfully');
             }
           } catch (e) {
@@ -293,25 +309,41 @@ if (sslInfo.available) {
   watchCertFile(sslInfo.certPath);
   watchCertFile(sslInfo.keyPath);
 
-  // Start HTTP→HTTPS redirect on port 80 (non-fatal if can't bind)
-  const httpRedirectPort = (config.ssl || {}).httpPort || 80;
-  const redirectApp = express();
-  redirectApp.use((req, res) => {
-    const host = (req.headers.host || '').replace(/:\d+$/, '');
-    const portSuffix = (PORT === 443) ? '' : `:${PORT}`;
-    res.redirect(301, `https://${host}${portSuffix}${req.url}`);
-  });
-  const redirectServer = http.createServer(redirectApp);
-  redirectServer.listen(httpRedirectPort, HOST, () => {
-    log.info(`HTTP→HTTPS redirect active on port ${httpRedirectPort}`);
-  }).on('error', (err) => {
-    if (err.code === 'EACCES') {
-      log.info(`Cannot bind port ${httpRedirectPort} (not root). Use: http://domain:${PORT} → auto-redirects not available`);
-    } else if (err.code === 'EADDRINUSE') {
-      log.info(`Port ${httpRedirectPort} already in use, HTTP redirect skipped`);
-    }
-  });
+  const httpFallbackApp = redirectHttp ? buildRedirectApp() : buildUpgradeRequiredApp();
+  const httpFallbackServer = http.createServer(httpFallbackApp);
 
+  const allowHttpOnHttpsPort = PORT === 443 || (config.ssl || {}).allowHttpOnHttpsPort === true;
+  if (allowHttpOnHttpsPort) {
+    mainServer = net.createServer((socket) => {
+      socket.once('data', (buffer) => {
+        if (!buffer || buffer.length === 0) {
+          socket.destroy();
+          return;
+        }
+        const isTls = buffer[0] === 22;
+        const targetServer = isTls ? httpsServer : httpFallbackServer;
+        socket.unshift(buffer);
+        targetServer.emit('connection', socket);
+      });
+    });
+  } else {
+    mainServer = httpsServer;
+  }
+
+  if (redirectHttp) {
+    // Start HTTP→HTTPS redirect on port 80 (non-fatal if can't bind)
+    const httpRedirectPort = (config.ssl || {}).httpPort || 80;
+    const redirectServer = http.createServer(buildRedirectApp());
+    redirectServer.listen(httpRedirectPort, HOST, () => {
+      log.info(`HTTP→HTTPS redirect active on port ${httpRedirectPort}`);
+    }).on('error', (err) => {
+      if (err.code === 'EACCES') {
+        log.info(`Cannot bind port ${httpRedirectPort} (not root). Use: http://domain:${PORT} → auto-redirects not available`);
+      } else if (err.code === 'EADDRINUSE') {
+        log.info(`Port ${httpRedirectPort} already in use, HTTP redirect skipped`);
+      }
+    });
+  }
 } else {
   // ── HTTP MODE ──
   // No SSL certs: serve plain HTTP
