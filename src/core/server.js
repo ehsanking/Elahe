@@ -187,6 +187,55 @@ cron.schedule('0 * * * *', () => {
   }
 });
 
+// SSL certificate auto-renewal (daily at 3 AM)
+const DomainService = require('../services/domain');
+cron.schedule('0 3 * * *', async () => {
+  if (!config.ssl.autoRenew) {
+    log.debug('SSL auto-renewal disabled, skipping');
+    return;
+  }
+  
+  try {
+    log.info('Starting SSL certificate auto-renewal check');
+    const result = await DomainService.checkAndRenewSSL();
+    
+    if (result.renewed.length > 0) {
+      log.info('SSL certificates renewed', { 
+        renewed: result.renewed.map(r => r.domain),
+        count: result.renewed.length 
+      });
+      
+      // Reload server SSL if certificates changed
+      if (sslInfo.available && httpsServer) {
+        try {
+          const newCert = fs.readFileSync(sslInfo.certPath, 'utf8');
+          const newKey = fs.readFileSync(sslInfo.keyPath, 'utf8');
+          if (newCert && newKey && newCert.length > 100 && newKey.length > 100) {
+            httpsServer.setSecureContext({ cert: newCert, key: newKey });
+            log.info('Server SSL context reloaded after certificate renewal');
+          }
+        } catch (e) {
+          log.warn('Failed to reload SSL certificates after renewal', { error: e.message });
+        }
+      }
+    }
+    
+    if (result.failed.length > 0) {
+      log.warn('SSL certificate renewals failed', { 
+        failed: result.failed.map(f => ({ domain: f.domain, error: f.error }))
+      });
+    }
+    
+    log.info('SSL renewal check completed', { 
+      renewed: result.renewed.length, 
+      failed: result.failed.length,
+      skipped: result.skipped.length 
+    });
+  } catch (err) {
+    log.error('SSL auto-renewal failed', { error: err.message });
+  }
+});
+
 // ============ SSL DETECTION ============
 
 function detectSSL() {

@@ -112,6 +112,8 @@ module.exports = {
     httpsPort: parseInt(process.env.HTTPS_PORT) || parseInt(process.env.PORT) || 443,
     httpPort: parseInt(process.env.HTTP_PORT) || 80,
     redirectHttp: process.env.SSL_REDIRECT_HTTP !== 'false', // redirect HTTP->HTTPS by default
+    autoRenew: process.env.SSL_AUTO_RENEW !== 'false', // auto-renew Let's Encrypt by default
+    renewDaysBefore: parseInt(process.env.SSL_RENEW_DAYS) || 7, // days before expiry to renew
   },
 
   // Paths
