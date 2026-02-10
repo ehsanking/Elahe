@@ -11,3 +11,8 @@ certs/
 packages/cores/
 packages/node_modules.tar.gz
 packages/node_modules.tar.gz.sha256
+
+# Test artifacts
+coverage/
+*.test.db
+.nyc_output/
