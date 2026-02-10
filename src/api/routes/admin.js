@@ -259,11 +259,13 @@ router.post('/autopilot/monitor', adminAuth, async (req, res) => {
   res.json({ success: true, ...result });
 });
 
+// DEPRECATED: Manual tunnel selection removed - all tunnels stay active on random ports
 router.post('/autopilot/set-primary', adminAuth, (req, res) => {
-  const { engine } = req.body;
-  if (!engine) return res.status(400).json({ error: '\u0646\u0627\u0645 \u0627\u0646\u062C\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
-  const result = TunnelService.setPrimary443(engine);
-  res.json(result);
+  res.status(410).json({ 
+    success: false, 
+    error: 'Manual tunnel selection has been removed. All tunnels are now kept active on random ports.',
+    mode: 'all_active',
+  });
 });
 
 router.post('/autopilot/toggle', adminAuth, (req, res) => {
