@@ -265,6 +265,7 @@ function migrate(dbPath) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       warp_id TEXT,
+      license_key TEXT,
       private_key TEXT,
       public_key TEXT,
       ipv4 TEXT,
@@ -272,6 +273,9 @@ function migrate(dbPath) {
       endpoint TEXT DEFAULT 'engage.cloudflareclient.com:2408',
       status TEXT DEFAULT 'inactive' CHECK(status IN ('active', 'inactive', 'error')),
       domains TEXT DEFAULT '[]',
+      is_free_tier INTEGER DEFAULT 1,
+      mtu INTEGER DEFAULT 1280,
+      reserved TEXT DEFAULT '[0,0,0]',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -367,6 +371,25 @@ function migrate(dbPath) {
   } catch (_) { /* column already exists */ }
   try {
     db.exec(`ALTER TABLE admins ADD COLUMN totp_verified_at DATETIME`);
+  } catch (_) { /* column already exists */ }
+
+  // WARP config table migrations (add new columns for free tier support)
+  try {
+    db.exec(`ALTER TABLE warp_config ADD COLUMN license_key TEXT`);
+  } catch (_) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE warp_config ADD COLUMN is_free_tier INTEGER DEFAULT 1`);
+  } catch (_) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE warp_config ADD COLUMN mtu INTEGER DEFAULT 1280`);
+  } catch (_) { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE warp_config ADD COLUMN reserved TEXT DEFAULT '[0,0,0]'`);
+  } catch (_) { /* column already exists */ }
+
+  // Domains table migrations (add auto-renew column)
+  try {
+    db.exec(`ALTER TABLE domains ADD COLUMN ssl_auto_renew INTEGER DEFAULT 1`);
   } catch (_) { /* column already exists */ }
 
   // Create default admin if not exists

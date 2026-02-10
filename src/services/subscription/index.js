@@ -14,6 +14,42 @@ const config = require('../../config/default');
 
 const log = createLogger('SubscriptionService');
 
+// Mobile game camouflage profiles
+const CAMOUFLAGE_PROFILES = {
+  'cod-mobile': {
+    name: 'Call of Duty Mobile',
+    ports: [80, 443, 5000, 5060],
+    protocols: ['tcp', 'udp'],
+    packetSize: { min: 100, max: 1400 },
+    interval: { min: 20, max: 100 },
+    tlsFingerprint: 'cod-mobile',
+  },
+  'pubg-mobile': {
+    name: 'PUBG Mobile',
+    ports: [80, 443, 10012, 17500],
+    protocols: ['tcp', 'udp'],
+    packetSize: { min: 80, max: 1200 },
+    interval: { min: 16, max: 64 },
+    tlsFingerprint: 'pubg-mobile',
+  },
+  'clash-royale': {
+    name: 'Clash Royale',
+    ports: [80, 443, 9339],
+    protocols: ['tcp'],
+    packetSize: { min: 50, max: 800 },
+    interval: { min: 100, max: 500 },
+    tlsFingerprint: 'clash-royale',
+  },
+  'mobile-legends': {
+    name: 'Mobile Legends',
+    ports: [80, 443, 5000, 5500, 5600],
+    protocols: ['tcp', 'udp'],
+    packetSize: { min: 60, max: 1000 },
+    interval: { min: 30, max: 150 },
+    tlsFingerprint: 'mobile-legends',
+  },
+};
+
 class SubscriptionService {
   /**
    * Get subscription data for a user by token
@@ -127,6 +163,36 @@ class SubscriptionService {
       autopilotStatus = autopilotService.getStatus();
     } catch (e) {}
 
+    // Get camouflage settings
+    let camouflageSettings = { enabled: false, profile: null };
+    try {
+      const db = getDb();
+      const camEnabled = db.prepare("SELECT value FROM settings WHERE key = 'camouflage.enabled'").get();
+      const camProfile = db.prepare("SELECT value FROM settings WHERE key = 'camouflage.profile'").get();
+      camouflageSettings = {
+        enabled: camEnabled?.value === 'true',
+        profile: camProfile?.value || null,
+        config: camProfile?.value ? CAMOUFLAGE_PROFILES[camProfile.value] : null,
+      };
+    } catch (e) {
+      // Ignore errors
+    }
+
+    // Get server connection status
+    let serverConnections = [];
+    try {
+      const db = getDb();
+      serverConnections = db.prepare(`
+        SELECT s.id, s.name, s.type, s.ip, s.status, s.last_ping, s.latency_ms,
+               (SELECT COUNT(*) FROM tunnels t WHERE t.iran_server_id = s.id OR t.foreign_server_id = s.id) as tunnel_count
+        FROM servers s
+        WHERE s.status = 'active'
+        ORDER BY s.type, s.name
+      `).all();
+    } catch (e) {
+      // Ignore errors
+    }
+
     return {
       ...data,
       apps,
@@ -140,6 +206,10 @@ class SubscriptionService {
       })),
       // TrustTunnel dedicated configs
       trustTunnelConfigs,
+      // Camouflage settings
+      camouflage: camouflageSettings,
+      // Server connection status
+      serverConnections,
       // Tunnel architecture info for user page
       tunnelArchitecture: {
         primary: {
@@ -185,6 +255,20 @@ class SubscriptionService {
         ],
       },
     };
+  }
+
+  /**
+   * Get camouflage profiles
+   */
+  static getCamouflageProfiles() {
+    return CAMOUFLAGE_PROFILES;
+  }
+
+  /**
+   * Get camouflage config for a profile
+   */
+  static getCamouflageConfig(profileId) {
+    return CAMOUFLAGE_PROFILES[profileId] || null;
   }
 }
 

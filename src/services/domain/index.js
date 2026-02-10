@@ -1,44 +1,17 @@
 /**
- * Elahe Panel - Domain Management Service
- * Auto-subdomain generation, SSL integration, check-host API
+ * Elahe Panel - Domain/SSL Management Service (Simplified)
+ * SSL certificate management and auto-renewal only
  * Developer: EHSANKiNG
  */
 
 const { getDb } = require('../../database');
 const { createLogger } = require('../../utils/logger');
 const config = require('../../config/default');
-const https = require('https');
-const http = require('http');
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 const log = createLogger('DomainService');
-
-// Non-suspicious subdomain names by mode
-const SUBDOMAIN_TEMPLATES = {
-  iran: [
-    { prefix: 'cdn', desc: 'Content Delivery Network' },
-    { prefix: 'api', desc: 'API Endpoint' },
-    { prefix: 'mail', desc: 'Mail Server' },
-    { prefix: 'cloud', desc: 'Cloud Services' },
-    { prefix: 'portal', desc: 'Web Portal' },
-    { prefix: 'app', desc: 'Application' },
-    { prefix: 'data', desc: 'Data Services' },
-    { prefix: 'auth', desc: 'Authentication' },
-    { prefix: 'static', desc: 'Static Content' },
-    { prefix: 'media', desc: 'Media Hosting' },
-  ],
-  foreign: [
-    { prefix: 'ns1', desc: 'Primary Nameserver' },
-    { prefix: 'ns2', desc: 'Secondary Nameserver' },
-    { prefix: 'api', desc: 'API Endpoint' },
-    { prefix: 'dashboard', desc: 'Dashboard' },
-    { prefix: 'docs', desc: 'Documentation' },
-    { prefix: 'status', desc: 'Status Page' },
-    { prefix: 'cdn', desc: 'CDN Endpoint' },
-    { prefix: 'resolver', desc: 'DNS Resolver' },
-    { prefix: 'analytics', desc: 'Analytics' },
-    { prefix: 'support', desc: 'Support Portal' },
-  ],
-};
 
 class DomainService {
   /**
@@ -58,22 +31,11 @@ class DomainService {
         ssl_cert_path TEXT,
         ssl_key_path TEXT,
         ssl_expires_at DATETIME,
+        ssl_auto_renew INTEGER DEFAULT 1,
         is_accessible_iran INTEGER DEFAULT -1,
         last_check DATETIME,
         status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'blocked')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS domain_checks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        domain_id INTEGER REFERENCES domains(id),
-        check_type TEXT DEFAULT 'http',
-        node_location TEXT,
-        result TEXT,
-        response_time_ms INTEGER,
-        checked_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
   }
@@ -102,38 +64,6 @@ class DomainService {
       log.error('Failed to set domain', { error: err.message });
       return { success: false, error: err.message };
     }
-  }
-
-  /**
-   * Auto-generate 10 meaningful subdomains
-   */
-  static generateSubdomains(mainDomain, mode = 'iran', serverId = null) {
-    this.initTables();
-    const db = getDb();
-    const templates = SUBDOMAIN_TEMPLATES[mode] || SUBDOMAIN_TEMPLATES.iran;
-    const subdomains = [];
-    
-    const insertStmt = db.prepare(`
-      INSERT OR IGNORE INTO domains (domain, type, parent_domain, purpose, server_id)
-      VALUES (?, 'subdomain', ?, ?, ?)
-    `);
-    
-    const transaction = db.transaction(() => {
-      for (const tmpl of templates) {
-        const fullDomain = `${tmpl.prefix}.${mainDomain}`;
-        insertStmt.run(fullDomain, mainDomain, tmpl.desc, serverId);
-        subdomains.push({
-          domain: fullDomain,
-          prefix: tmpl.prefix,
-          purpose: tmpl.desc,
-        });
-      }
-    });
-    
-    transaction();
-    log.info('Subdomains generated', { count: subdomains.length, mainDomain });
-    
-    return subdomains;
   }
 
   /**
@@ -182,124 +112,136 @@ class DomainService {
   }
 
   /**
-   * Check domain accessibility using check-host.net API
+   * Check SSL certificate expiry and auto-renew if needed
    */
-  static async checkAccessibility(domain) {
+  static async checkAndRenewSSL() {
     this.initTables();
+    const db = getDb();
+    const results = { renewed: [], failed: [], skipped: [] };
     
-    return new Promise((resolve) => {
-      const url = `https://check-host.net/check-http?host=https://${domain}&max_nodes=10`;
-      
-      const req = https.get(url, {
-        headers: { 'Accept': 'application/json' },
-        timeout: 10000,
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            const requestId = result.request_id;
-            
-            if (!requestId) {
-              resolve({ success: false, error: 'No request ID received' });
-              return;
-            }
-            
-            // Wait and fetch results
-            setTimeout(() => {
-              this._fetchCheckResults(requestId, domain).then(resolve).catch(err => {
-                resolve({ success: false, error: err.message });
-              });
-            }, 8000);
-          } catch (e) {
-            resolve({ success: false, error: 'Invalid response from check-host' });
-          }
-        });
-      });
-      
-      req.on('error', (err) => {
-        resolve({ success: false, error: err.message });
-      });
-      
-      req.on('timeout', () => {
-        req.destroy();
-        resolve({ success: false, error: 'Timeout' });
-      });
-    });
+    // Get domains with SSL that need renewal (expires within 7 days or already expired)
+    const domains = db.prepare(`
+      SELECT * FROM domains 
+      WHERE ssl_status = 'letsencrypt' 
+      AND ssl_auto_renew = 1
+      AND (ssl_expires_at IS NULL OR ssl_expires_at < datetime('now', '+7 days'))
+    `).all();
+    
+    for (const domain of domains) {
+      try {
+        log.info(`Checking SSL for ${domain.domain}`);
+        
+        // Verify certificate exists
+        if (!domain.ssl_cert_path || !fs.existsSync(domain.ssl_cert_path)) {
+          results.failed.push({ domain: domain.domain, error: 'Certificate file not found' });
+          continue;
+        }
+        
+        // Try to renew with certbot
+        const renewResult = this.renewCertificate(domain.domain);
+        
+        if (renewResult.success) {
+          results.renewed.push({ domain: domain.domain, expiresAt: renewResult.expiresAt });
+          
+          // Update database
+          db.prepare(`
+            UPDATE domains SET ssl_expires_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+          `).run(renewResult.expiresAt, domain.id);
+        } else {
+          results.failed.push({ domain: domain.domain, error: renewResult.error });
+        }
+      } catch (err) {
+        log.error(`SSL renewal failed for ${domain.domain}`, { error: err.message });
+        results.failed.push({ domain: domain.domain, error: err.message });
+      }
+    }
+    
+    return { success: true, ...results };
   }
 
   /**
-   * Fetch check results from check-host.net
+   * Renew a Let's Encrypt certificate
    */
-  static async _fetchCheckResults(requestId, domain) {
-    return new Promise((resolve) => {
-      const url = `https://check-host.net/check-result/${requestId}`;
+  static renewCertificate(domain) {
+    try {
+      // Check if certbot is available
+      try {
+        execSync('which certbot', { timeout: 5000 });
+      } catch {
+        return { success: false, error: 'certbot not installed' };
+      }
       
-      https.get(url, {
-        headers: { 'Accept': 'application/json' },
-        timeout: 10000,
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          try {
-            const results = JSON.parse(data);
-            const db = getDb();
-            const domainRow = db.prepare('SELECT id FROM domains WHERE domain = ?').get(domain);
-            
-            const nodes = {};
-            let iranAccessible = true;
-            
-            for (const [node, result] of Object.entries(results)) {
-              if (!result || !result[0]) continue;
-              
-              const isOk = result[0][0] === 1;
-              const responseTime = result[0][1] || null;
-              
-              nodes[node] = {
-                accessible: isOk,
-                responseTime,
-                status: result[0][3] || null,
-              };
-              
-              // Check if Iran node
-              if (node.includes('ir') && !isOk) {
-                iranAccessible = false;
-              }
-              
-              // Save to DB
-              if (domainRow) {
-                db.prepare(`
-                  INSERT INTO domain_checks (domain_id, check_type, node_location, result, response_time_ms)
-                  VALUES (?, 'http', ?, ?, ?)
-                `).run(domainRow.id, node, isOk ? 'accessible' : 'blocked', responseTime ? Math.round(responseTime * 1000) : null);
-              }
-            }
-            
-            // Update domain record
-            if (domainRow) {
-              db.prepare(`
-                UPDATE domains SET is_accessible_iran = ?, last_check = CURRENT_TIMESTAMP WHERE id = ?
-              `).run(iranAccessible ? 1 : 0, domainRow.id);
-            }
-            
-            resolve({
-              success: true,
-              domain,
-              requestId,
-              nodes,
-              iranAccessible,
-              totalNodes: Object.keys(nodes).length,
-            });
-          } catch (e) {
-            resolve({ success: false, error: 'Failed to parse results' });
-          }
-        });
-      }).on('error', (err) => {
-        resolve({ success: false, error: err.message });
+      // Try to renew the certificate
+      const output = execSync(`certbot renew --cert-name ${domain} --quiet --no-random-sleep-on-renew`, { 
+        timeout: 120000,
+        encoding: 'utf8'
       });
-    });
+      
+      // Get new expiry date
+      const certPath = `/etc/letsencrypt/live/${domain}/fullchain.pem`;
+      let expiresAt = null;
+      
+      if (fs.existsSync(certPath)) {
+        const expiryOutput = execSync(`openssl x509 -in ${certPath} -noout -dates`, { timeout: 5000 }).toString();
+        const match = expiryOutput.match(/notAfter=(.+)/);
+        if (match) {
+          expiresAt = new Date(match[1]).toISOString();
+        }
+      }
+      
+      log.info(`SSL certificate renewed for ${domain}`, { expiresAt });
+      return { success: true, expiresAt };
+    } catch (err) {
+      log.error(`Failed to renew certificate for ${domain}`, { error: err.message });
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Request new Let's Encrypt certificate
+   */
+  static requestCertificate(domain, email = null, standalone = true) {
+    try {
+      // Check if certbot is available
+      try {
+        execSync('which certbot', { timeout: 5000 });
+      } catch {
+        return { success: false, error: 'certbot not installed' };
+      }
+      
+      const emailFlag = email ? `--email ${email}` : '--register-unsafely-without-email';
+      const standaloneFlag = standalone ? '--standalone' : '--webroot -w /var/www/html';
+      
+      const cmd = `certbot certonly ${standaloneFlag} -d ${domain} ${emailFlag} --agree-tos --non-interactive --quiet`;
+      
+      const output = execSync(cmd, { timeout: 300000, encoding: 'utf8' });
+      
+      // Get certificate info
+      const certPath = `/etc/letsencrypt/live/${domain}/fullchain.pem`;
+      const keyPath = `/etc/letsencrypt/live/${domain}/privkey.pem`;
+      
+      if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+        const expiryOutput = execSync(`openssl x509 -in ${certPath} -noout -dates`, { timeout: 5000 }).toString();
+        const match = expiryOutput.match(/notAfter=(.+)/);
+        const expiresAt = match ? new Date(match[1]).toISOString() : null;
+        
+        // Update database
+        this.initTables();
+        const db = getDb();
+        db.prepare(`
+          INSERT OR REPLACE INTO domains (domain, type, ssl_status, ssl_cert_path, ssl_key_path, ssl_expires_at, ssl_auto_renew)
+          VALUES (?, 'main', 'letsencrypt', ?, ?, ?, 1)
+        `).run(domain, certPath, keyPath, expiresAt);
+        
+        log.info(`New SSL certificate issued for ${domain}`, { expiresAt });
+        return { success: true, certPath, keyPath, expiresAt };
+      }
+      
+      return { success: false, error: 'Certificate files not created' };
+    } catch (err) {
+      log.error(`Failed to request certificate for ${domain}`, { error: err.message });
+      return { success: false, error: err.message };
+    }
   }
 
   /**
@@ -325,7 +267,6 @@ class DomainService {
     const db = getDb();
     const domain = db.prepare('SELECT id FROM domains WHERE domain = ?').get(domainName);
     if (domain) {
-      db.prepare('DELETE FROM domain_checks WHERE domain_id = ?').run(domain.id);
       db.prepare('DELETE FROM domains WHERE id = ?').run(domain.id);
     }
     return { success: true };
@@ -342,9 +283,21 @@ class DomainService {
       main: db.prepare("SELECT COUNT(*) as c FROM domains WHERE type = 'main'").get().c,
       subdomains: db.prepare("SELECT COUNT(*) as c FROM domains WHERE type = 'subdomain'").get().c,
       withSSL: db.prepare("SELECT COUNT(*) as c FROM domains WHERE ssl_status != 'none'").get().c,
-      accessible: db.prepare("SELECT COUNT(*) as c FROM domains WHERE is_accessible_iran = 1").get().c,
-      blocked: db.prepare("SELECT COUNT(*) as c FROM domains WHERE is_accessible_iran = 0").get().c,
+      withLetsEncrypt: db.prepare("SELECT COUNT(*) as c FROM domains WHERE ssl_status = 'letsencrypt'").get().c,
+      autoRenewEnabled: db.prepare("SELECT COUNT(*) as c FROM domains WHERE ssl_auto_renew = 1").get().c,
     };
+  }
+
+  /**
+   * Toggle auto-renew for a domain
+   */
+  static toggleAutoRenew(domain, enabled) {
+    this.initTables();
+    const db = getDb();
+    db.prepare(`
+      UPDATE domains SET ssl_auto_renew = ?, updated_at = CURRENT_TIMESTAMP WHERE domain = ?
+    `).run(enabled ? 1 : 0, domain);
+    return { success: true };
   }
 }
 

@@ -14,7 +14,6 @@ const ServerService = require('../../services/server');
 const TunnelService = require('../../services/tunnel');
 const DomainService = require('../../services/domain');
 const ImportExportService = require('../../services/importexport');
-const ExternalPanelService = require('../../services/externalpanel');
 const autopilotService = require('../../services/autopilot');
 const { tunnelManager } = require('../../tunnel/engines');
 const SystemMonitor = require('../../services/monitor');
@@ -59,10 +58,10 @@ router.get('/dashboard', adminAuth, (req, res) => {
     version: '0.0.5',
   };
 
-  // Add domain stats
+  // Add domain/SSL stats
   try { dashboard.domains = DomainService.getStats(); } catch (e) { dashboard.domains = { total: 0 }; }
-  // Add external panels count
-  try { dashboard.externalPanels = ExternalPanelService.listPanels().length; } catch (e) { dashboard.externalPanels = 0; }
+  // Add SSL auto-renew status
+  try { dashboard.sslAutoRenew = config.ssl.autoRenew; } catch (e) { dashboard.sslAutoRenew = false; }
   // Add autopilot status
   try { dashboard.autopilot = autopilotService.getStatus(); } catch (e) { dashboard.autopilot = { initialized: false }; }
   // Add geo routing stats
@@ -112,7 +111,6 @@ router.get('/capabilities', adminAuth, (req, res) => {
       manageSettings: true,
       manageDomains: mode === 'foreign',
       importExport: mode === 'iran',
-      externalPanels: true,
       viewSubscriptions: mode === 'iran',
       generateConfigs: mode === 'iran',
       autopilot: true,
@@ -122,11 +120,12 @@ router.get('/capabilities', adminAuth, (req, res) => {
       geoRouting: true,
       warp: true,
       contentBlocking: true,
-      subdomainManagement: mode === 'foreign',
+      sslManagement: true,
       apiKeys: true,
       onlineUsers: true,
       customPorts: mode === 'iran',
       twoFactor: true,
+      mobileGameCamouflage: true,
     },
   });
 });
@@ -413,6 +412,55 @@ router.get('/core/logs/:engine', adminAuth, (req, res) => {
   res.json(CoreManager.getCoreLogs(req.params.engine, lines));
 });
 
+// Core Engine Version Selection
+router.post('/core/set-version', adminAuth, (req, res) => {
+  const { engine, version } = req.body;
+  if (!engine || !version) return res.status(400).json({ error: 'Engine and version are required' });
+  
+  const db = getDb();
+  // Deactivate all versions of this engine
+  db.prepare('UPDATE core_versions SET is_active = 0 WHERE engine = ?').run(engine);
+  // Activate selected version
+  const result = db.prepare(`
+    UPDATE core_versions SET is_active = 1, updated_at = CURRENT_TIMESTAMP 
+    WHERE engine = ? AND version = ?
+  `).run(engine, version);
+  
+  if (result.changes === 0) {
+    return res.status(404).json({ success: false, error: 'Version not found' });
+  }
+  
+  // Update config
+  db.prepare(`
+    INSERT OR REPLACE INTO settings (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `).run('core.engine', engine);
+  
+  db.prepare(`
+    INSERT OR REPLACE INTO settings (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `).run(`core.${engine}.version`, version);
+  
+  log.info(`Core engine version set: ${engine} ${version}`);
+  res.json({ success: true, engine, version });
+});
+
+router.post('/core/switch-engine', adminAuth, (req, res) => {
+  const { engine } = req.body;
+  if (!engine || !['xray', 'singbox'].includes(engine)) {
+    return res.status(400).json({ error: 'Valid engine (xray or singbox) is required' });
+  }
+  
+  const db = getDb();
+  db.prepare(`
+    INSERT OR REPLACE INTO settings (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `).run('core.engine', engine);
+  
+  log.info(`Core engine switched to: ${engine}`);
+  res.json({ success: true, engine });
+});
+
 // ============ WARP ============
 router.get('/warp/configs', adminAuth, (req, res) => {
   res.json({ success: true, configs: WarpService.listConfigs() });
@@ -468,50 +516,64 @@ router.get('/content-block/xray-rules', adminAuth, (req, res) => {
   res.json({ success: true, rules: ContentBlockService.generateXrayBlockRules() });
 });
 
-// ============ SUBDOMAIN MANAGEMENT ============
-router.get('/subdomains', adminAuth, foreignOnly, (req, res) => {
-  const db = getDb();
-  const subdomains = db.prepare('SELECT * FROM subdomains ORDER BY id ASC').all();
-  res.json({ success: true, subdomains });
-});
-
-router.post('/subdomains', adminAuth, foreignOnly, (req, res) => {
-  const { subdomain, parent_domain, purpose, server_id } = req.body;
-  if (!subdomain || !parent_domain) return res.status(400).json({ error: '\u0633\u0627\u0628\u200C\u062F\u0627\u0645\u06CC\u0646 \u0648 \u062F\u0627\u0645\u06CC\u0646 \u0627\u0635\u0644\u06CC \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
-
-  const db = getDb();
+// ============ SSL MANAGEMENT ============
+router.get('/ssl/status', adminAuth, (req, res) => {
   try {
-    const result = db.prepare(`
-      INSERT INTO subdomains (subdomain, parent_domain, purpose, server_id)
-      VALUES (?, ?, ?, ?)
-    `).run(subdomain, parent_domain, purpose || 'general', server_id || null);
-    res.json({ success: true, id: result.lastInsertRowid });
+    const DomainService = require('../../services/domain');
+    res.json({ 
+      success: true, 
+      domains: DomainService.listDomains(),
+      stats: DomainService.getStats(),
+      autoRenewEnabled: config.ssl.autoRenew,
+    });
   } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-router.delete('/subdomains/:id', adminAuth, foreignOnly, (req, res) => {
-  const db = getDb();
-  db.prepare('DELETE FROM subdomains WHERE id = ?').run(req.params.id);
-  res.json({ success: true });
+router.post('/ssl/request', adminAuth, foreignOnly, async (req, res) => {
+  const { domain, email, standalone } = req.body;
+  if (!domain) return res.status(400).json({ error: 'Domain is required' });
+
+  try {
+    const DomainService = require('../../services/domain');
+    const result = DomainService.requestCertificate(domain, email, standalone !== false);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-router.post('/subdomains/:id/request-ssl', adminAuth, foreignOnly, async (req, res) => {
-  const db = getDb();
-  const sub = db.prepare('SELECT * FROM subdomains WHERE id = ?').get(req.params.id);
-  if (!sub) return res.status(404).json({ error: '\u0633\u0627\u0628\u200C\u062F\u0627\u0645\u06CC\u0646 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
-
-  // Mark as pending
-  db.prepare("UPDATE subdomains SET ssl_status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+router.post('/ssl/renew', adminAuth, async (req, res) => {
+  const { domain } = req.body;
   
-  // In real deployment, this would call certbot
-  // For now, just update status to indicate the request
-  res.json({
-    success: true,
-    message: `\u062F\u0631\u062E\u0648\u0627\u0633\u062A SSL \u0628\u0631\u0627\u06CC ${sub.subdomain} \u062B\u0628\u062A \u0634\u062F`,
-    command: `certbot certonly --standalone -d ${sub.subdomain} --agree-tos --non-interactive`,
-  });
+  try {
+    const DomainService = require('../../services/domain');
+    if (domain) {
+      // Renew specific domain
+      const result = DomainService.renewCertificate(domain);
+      res.json(result);
+    } else {
+      // Renew all expiring certificates
+      const result = await DomainService.checkAndRenewSSL();
+      res.json(result);
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ssl/auto-renew/:domain', adminAuth, (req, res) => {
+  const { enabled } = req.body;
+  const { domain } = req.params;
+  
+  try {
+    const DomainService = require('../../services/domain');
+    const result = DomainService.toggleAutoRenew(domain, enabled !== false);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ============ API KEYS ============
@@ -562,20 +624,6 @@ router.post('/domains', adminAuth, foreignOnly, (req, res) => {
   res.status(400).json(result);
 });
 
-router.post('/domains/generate-subdomains', adminAuth, foreignOnly, (req, res) => {
-  const { domain, mode, serverId } = req.body;
-  if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
-  const subdomains = DomainService.generateSubdomains(domain, mode || config.mode, serverId || null);
-  res.json({ success: true, subdomains });
-});
-
-router.post('/domains/check-accessibility', adminAuth, foreignOnly, async (req, res) => {
-  const { domain } = req.body;
-  if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
-  const result = await DomainService.checkAccessibility(domain);
-  res.json(result);
-});
-
 router.delete('/domains/:domain', adminAuth, foreignOnly, (req, res) => {
   DomainService.deleteDomain(req.params.domain);
   res.json({ success: true });
@@ -616,37 +664,80 @@ router.post('/import/full', adminAuth, iranOnly, (req, res) => {
   catch (err) { res.status(400).json({ success: false, error: err.message }); }
 });
 
-// ============ EXTERNAL PANELS (Marzban / 3x-ui) ============
-router.get('/external-panels', adminAuth, (req, res) => {
-  res.json({ success: true, panels: ExternalPanelService.listPanels() });
+// ============ MOBILE GAME TRAFFIC CAMOUFLAGE ============
+router.get('/camouflage/profiles', adminAuth, (req, res) => {
+  const profiles = [
+    {
+      id: 'cod-mobile',
+      name: 'Call of Duty Mobile',
+      description: 'Mimics CoD Mobile traffic patterns',
+      ports: [80, 443, 5000, 5060],
+      protocols: ['tcp', 'udp'],
+      packetSize: { min: 100, max: 1400 },
+      interval: { min: 20, max: 100 },
+    },
+    {
+      id: 'pubg-mobile',
+      name: 'PUBG Mobile',
+      description: 'Mimics PUBG Mobile traffic patterns',
+      ports: [80, 443, 10012, 17500],
+      protocols: ['tcp', 'udp'],
+      packetSize: { min: 80, max: 1200 },
+      interval: { min: 16, max: 64 },
+    },
+    {
+      id: 'clash-royale',
+      name: 'Clash Royale',
+      description: 'Mimics Clash Royale traffic patterns',
+      ports: [80, 443, 9339],
+      protocols: ['tcp'],
+      packetSize: { min: 50, max: 800 },
+      interval: { min: 100, max: 500 },
+    },
+    {
+      id: 'mobile-legends',
+      name: 'Mobile Legends',
+      description: 'Mimics Mobile Legends traffic patterns',
+      ports: [80, 443, 5000, 5500, 5600],
+      protocols: ['tcp', 'udp'],
+      packetSize: { min: 60, max: 1000 },
+      interval: { min: 30, max: 150 },
+    },
+  ];
+  res.json({ success: true, profiles });
 });
 
-router.post('/external-panels', adminAuth, (req, res) => { res.json(ExternalPanelService.addPanel(req.body)); });
-
-router.delete('/external-panels/:id', adminAuth, (req, res) => {
-  ExternalPanelService.deletePanel(req.params.id);
-  res.json({ success: true });
+router.get('/camouflage/status', adminAuth, (req, res) => {
+  const db = getDb();
+  const settings = db.prepare("SELECT * FROM settings WHERE key LIKE 'camouflage.%'").all();
+  const result = {};
+  settings.forEach(s => { result[s.key.replace('camouflage.', '')] = s.value; });
+  res.json({ 
+    success: true, 
+    enabled: result.enabled === 'true',
+    profile: result.profile || 'none',
+    settings: result,
+  });
 });
 
-router.post('/external-panels/:id/health', adminAuth, async (req, res) => {
-  const result = await ExternalPanelService.checkPanelHealth(req.params.id);
-  res.json(result);
-});
-
-router.post('/external-panels/:id/sync', adminAuth, iranOnly, async (req, res) => {
-  const panel = ExternalPanelService.getPanel(req.params.id);
-  if (!panel) return res.status(404).json({ error: '\u067E\u0646\u0644 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
-  let result;
-  if (panel.type === 'marzban') result = await ExternalPanelService.syncFromMarzban(req.params.id, req.user.id);
-  else if (panel.type === '3xui') result = await ExternalPanelService.syncFromXUI(req.params.id, req.user.id);
-  else return res.status(400).json({ error: '\u0646\u0648\u0639 \u067E\u0646\u0644 \u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u0646\u0645\u06CC\u200C\u0634\u0648\u062F' });
-  res.json(result);
-});
-
-router.get('/external-panels/:id/proxy-url', adminAuth, (req, res) => {
-  const info = ExternalPanelService.getPanelProxyUrl(req.params.id);
-  if (!info) return res.status(404).json({ error: '\u067E\u0646\u0644 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
-  res.json({ success: true, ...info });
+router.post('/camouflage/toggle', adminAuth, (req, res) => {
+  const { enabled, profile } = req.body;
+  const db = getDb();
+  
+  db.prepare(`
+    INSERT OR REPLACE INTO settings (key, value, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `).run('camouflage.enabled', enabled === true ? 'true' : 'false');
+  
+  if (profile) {
+    db.prepare(`
+      INSERT OR REPLACE INTO settings (key, value, updated_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+    `).run('camouflage.profile', profile);
+  }
+  
+  log.info(`Traffic camouflage ${enabled ? 'enabled' : 'disabled'}`, { profile });
+  res.json({ success: true, enabled, profile });
 });
 
 // ============ REALITY TARGETS ============
