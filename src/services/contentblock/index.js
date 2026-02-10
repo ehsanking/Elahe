@@ -2,7 +2,7 @@
  * Elahe Panel - Content Blocking Service
  * BitTorrent, Porn, Gambling blocking capabilities
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const { getDb } = require('../../database');

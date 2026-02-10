@@ -1,7 +1,7 @@
 #!/bin/bash
 # Elahe Panel - Iran Server Installation Script
 # Developer: EHSANKiNG
-# Version: 0.0.4
+# Version: 0.0.5
 
 set -e
 
@@ -18,7 +18,7 @@ GITHUB_API="https://api.github.com/repos/ehsanking/Elahe"
 echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════╗"
 echo "║     Elahe Panel - Iran Server Setup      ║"
-echo "║     Version: 0.0.4                       ║"
+echo "║     Version: 0.0.5                       ║"
 echo "║     Developer: EHSANKiNG                  ║"
 echo "╚══════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -30,11 +30,11 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Update system
-echo -e "${YELLOW}[1/7] Updating system...${NC}"
+echo -e "${YELLOW}[1/8] Updating system...${NC}"
 apt-get update -y && apt-get upgrade -y
 
 # Install Node.js
-echo -e "${YELLOW}[2/7] Installing Node.js...${NC}"
+echo -e "${YELLOW}[2/8] Installing Node.js...${NC}"
 if ! command -v node &> /dev/null; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
   apt-get install -y nodejs
@@ -42,11 +42,11 @@ fi
 echo -e "${GREEN}Node.js $(node -v) installed${NC}"
 
 # Install build tools
-echo -e "${YELLOW}[3/7] Installing build tools...${NC}"
-apt-get install -y build-essential python3 git curl wget unzip jq
+echo -e "${YELLOW}[3/8] Installing build tools...${NC}"
+apt-get install -y build-essential python3 git curl wget unzip jq dnsutils net-tools nginx socat iptables
 
 # Setup project with smart directory handling
-echo -e "${YELLOW}[4/7] Setting up project...${NC}"
+echo -e "${YELLOW}[4/8] Setting up project...${NC}"
 
 # Stop existing service if running
 systemctl stop elahe 2>/dev/null || true
@@ -172,16 +172,16 @@ setup_project
 cd "$INSTALL_DIR"
 
 # Install dependencies
-echo -e "${YELLOW}[5/7] Installing dependencies...${NC}"
+echo -e "${YELLOW}[5/8] Installing dependencies...${NC}"
 npm install --production
 
 # Configure (only if .env doesn't exist)
-echo -e "${YELLOW}[6/7] Configuring...${NC}"
+echo -e "${YELLOW}[6/8] Configuring...${NC}"
 if [ ! -f "$INSTALL_DIR/.env" ]; then
   cat > "$INSTALL_DIR/.env" << EOF
 ELAHE_MODE=iran
 PORT=3000
-HOST=0.0.0.0
+HOST=127.0.0.1
 ADMIN_USER=admin
 ADMIN_PASS=$(openssl rand -hex 8)
 CORE_ENGINE=xray
@@ -202,8 +202,81 @@ fi
 mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/certs" "$INSTALL_DIR/logs"
 node -e "require('./src/database/migrate').migrate()"
 
+# Configure Nginx reverse proxy
+echo -e "${YELLOW}[7/8] Configuring Nginx...${NC}"
+APP_PORT=3000
+if [ ! -f "$INSTALL_DIR/certs/fullchain.pem" ] || [ ! -f "$INSTALL_DIR/certs/privkey.pem" ]; then
+  echo -e "${YELLOW}[INFO] Generating self-signed certificate...${NC}"
+  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+    -subj "/CN=localhost" \
+    -keyout "$INSTALL_DIR/certs/privkey.pem" \
+    -out "$INSTALL_DIR/certs/fullchain.pem" 2>/dev/null
+fi
+
+NGINX_SITE="/etc/nginx/sites-available/elahe.conf"
+if [ -d "/etc/nginx/sites-available" ]; then
+  cat > "$NGINX_SITE" << EOF
+server {
+  listen 80;
+  server_name _;
+  return 301 https://\$host\$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name _;
+  ssl_certificate $INSTALL_DIR/certs/fullchain.pem;
+  ssl_certificate_key $INSTALL_DIR/certs/privkey.pem;
+  ssl_session_cache shared:SSL:10m;
+  ssl_session_timeout 10m;
+
+  location / {
+    proxy_pass http://127.0.0.1:$APP_PORT;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+EOF
+  ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/elahe.conf
+  rm -f /etc/nginx/sites-enabled/default
+else
+  cat > /etc/nginx/conf.d/elahe.conf << EOF
+server {
+  listen 80;
+  server_name _;
+  return 301 https://\$host\$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name _;
+  ssl_certificate $INSTALL_DIR/certs/fullchain.pem;
+  ssl_certificate_key $INSTALL_DIR/certs/privkey.pem;
+
+  location / {
+    proxy_pass http://127.0.0.1:$APP_PORT;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+EOF
+fi
+
+systemctl enable nginx
+systemctl restart nginx
+
 # Setup systemd service
-echo -e "${YELLOW}[7/7] Creating systemd service...${NC}"
+echo -e "${YELLOW}[8/8] Creating systemd service...${NC}"
 cat > /etc/systemd/system/elahe.service << EOF
 [Unit]
 Description=Elahe Panel
@@ -237,7 +310,6 @@ chmod +x /usr/local/bin/elahe
 # Open firewall ports
 echo -e "${YELLOW}Opening firewall ports...${NC}"
 if command -v ufw &> /dev/null; then
-  ufw allow 3000/tcp
   ufw allow 443/tcp
   ufw allow 8443/tcp
   ufw allow 8080/tcp
@@ -256,8 +328,8 @@ echo -e "${GREEN}"
 echo "╔══════════════════════════════════════════╗"
 echo "║     Installation Complete!               ║"
 echo "╠══════════════════════════════════════════╣"
-echo "║  Panel: http://$(hostname -I | awk '{print $1}'):3000"
-echo "║  Admin: http://$(hostname -I | awk '{print $1}'):3000/admin"
+echo "║  Panel: http://$(hostname -I | awk '{print $1}'):443"
+echo "║  Admin: http://$(hostname -I | awk '{print $1}'):443/admin"
 echo "║  User:  admin"
 echo "║  Pass:  $ADMIN_PASS"
 echo "╠══════════════════════════════════════════╣"

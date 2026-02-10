@@ -3,7 +3,7 @@
  * Full-featured admin API with Iran/Foreign mode separation
  * Includes Autopilot, GeoRouting, WARP, Core Management, Content Blocking
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const express = require('express');
@@ -27,6 +27,8 @@ const { createLogger } = require('../../utils/logger');
 const config = require('../../config/default');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const speakeasy = require('speakeasy');
+const qrcode = require('qrcode');
 
 const log = createLogger('AdminAPI');
 const adminAuth = authMiddleware('admin');
@@ -39,6 +41,13 @@ const iranOnly = (req, res, next) => {
   next();
 };
 
+const foreignOnly = (req, res, next) => {
+  if (config.mode === 'iran') {
+    return res.status(403).json({ error: '\u0627\u06CC\u0646 \u0642\u0627\u0628\u0644\u06CC\u062A \u0641\u0642\u0637 \u062F\u0631 \u067E\u0646\u0644 \u062E\u0627\u0631\u062C \u0645\u0648\u062C\u0648\u062F \u0627\u0633\u062A', mode: config.mode });
+  }
+  next();
+};
+
 // ============ DASHBOARD ============
 router.get('/dashboard', adminAuth, (req, res) => {
   const dashboard = {
@@ -47,7 +56,7 @@ router.get('/dashboard', adminAuth, (req, res) => {
     tunnels: TunnelService.getStats(),
     tunnelEngines: tunnelManager.getStats(),
     mode: config.mode,
-    version: '0.0.4',
+    version: '0.0.5',
   };
 
   // Add domain stats
@@ -101,7 +110,7 @@ router.get('/capabilities', adminAuth, (req, res) => {
       manageServers: true,
       manageTunnels: true,
       manageSettings: true,
-      manageDomains: true,
+      manageDomains: mode === 'foreign',
       importExport: mode === 'iran',
       externalPanels: true,
       viewSubscriptions: mode === 'iran',
@@ -113,10 +122,11 @@ router.get('/capabilities', adminAuth, (req, res) => {
       geoRouting: true,
       warp: true,
       contentBlocking: true,
-      subdomainManagement: true,
+      subdomainManagement: mode === 'foreign',
       apiKeys: true,
       onlineUsers: true,
       customPorts: mode === 'iran',
+      twoFactor: true,
     },
   });
 });
@@ -459,13 +469,13 @@ router.get('/content-block/xray-rules', adminAuth, (req, res) => {
 });
 
 // ============ SUBDOMAIN MANAGEMENT ============
-router.get('/subdomains', adminAuth, (req, res) => {
+router.get('/subdomains', adminAuth, foreignOnly, (req, res) => {
   const db = getDb();
   const subdomains = db.prepare('SELECT * FROM subdomains ORDER BY id ASC').all();
   res.json({ success: true, subdomains });
 });
 
-router.post('/subdomains', adminAuth, (req, res) => {
+router.post('/subdomains', adminAuth, foreignOnly, (req, res) => {
   const { subdomain, parent_domain, purpose, server_id } = req.body;
   if (!subdomain || !parent_domain) return res.status(400).json({ error: '\u0633\u0627\u0628\u200C\u062F\u0627\u0645\u06CC\u0646 \u0648 \u062F\u0627\u0645\u06CC\u0646 \u0627\u0635\u0644\u06CC \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
 
@@ -481,13 +491,13 @@ router.post('/subdomains', adminAuth, (req, res) => {
   }
 });
 
-router.delete('/subdomains/:id', adminAuth, (req, res) => {
+router.delete('/subdomains/:id', adminAuth, foreignOnly, (req, res) => {
   const db = getDb();
   db.prepare('DELETE FROM subdomains WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 
-router.post('/subdomains/:id/request-ssl', adminAuth, async (req, res) => {
+router.post('/subdomains/:id/request-ssl', adminAuth, foreignOnly, async (req, res) => {
   const db = getDb();
   const sub = db.prepare('SELECT * FROM subdomains WHERE id = ?').get(req.params.id);
   if (!sub) return res.status(404).json({ error: '\u0633\u0627\u0628\u200C\u062F\u0627\u0645\u06CC\u0646 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
@@ -535,7 +545,7 @@ router.delete('/api-keys/:id', adminAuth, (req, res) => {
 });
 
 // ============ DOMAINS ============
-router.get('/domains', adminAuth, (req, res) => {
+router.get('/domains', adminAuth, foreignOnly, (req, res) => {
   const { serverId } = req.query;
   res.json({
     success: true,
@@ -544,7 +554,7 @@ router.get('/domains', adminAuth, (req, res) => {
   });
 });
 
-router.post('/domains', adminAuth, (req, res) => {
+router.post('/domains', adminAuth, foreignOnly, (req, res) => {
   const { domain, serverId } = req.body;
   if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
   const result = DomainService.setMainDomain(domain, serverId || null);
@@ -552,21 +562,21 @@ router.post('/domains', adminAuth, (req, res) => {
   res.status(400).json(result);
 });
 
-router.post('/domains/generate-subdomains', adminAuth, (req, res) => {
+router.post('/domains/generate-subdomains', adminAuth, foreignOnly, (req, res) => {
   const { domain, mode, serverId } = req.body;
   if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
   const subdomains = DomainService.generateSubdomains(domain, mode || config.mode, serverId || null);
   res.json({ success: true, subdomains });
 });
 
-router.post('/domains/check-accessibility', adminAuth, async (req, res) => {
+router.post('/domains/check-accessibility', adminAuth, foreignOnly, async (req, res) => {
   const { domain } = req.body;
   if (!domain) return res.status(400).json({ error: '\u062F\u0627\u0645\u06CC\u0646 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A' });
   const result = await DomainService.checkAccessibility(domain);
   res.json(result);
 });
 
-router.delete('/domains/:domain', adminAuth, (req, res) => {
+router.delete('/domains/:domain', adminAuth, foreignOnly, (req, res) => {
   DomainService.deleteDomain(req.params.domain);
   res.json({ success: true });
 });
@@ -681,6 +691,52 @@ router.put('/settings', adminAuth, (req, res) => {
     }
   });
   transaction();
+  res.json({ success: true });
+});
+
+// ============ TWO-FACTOR AUTHENTICATION ============
+router.get('/security/2fa', adminAuth, (req, res) => {
+  const db = getDb();
+  const admin = db.prepare('SELECT totp_enabled FROM admins WHERE id = ?').get(req.user.id);
+  res.json({ success: true, enabled: admin?.totp_enabled === 1 });
+});
+
+router.post('/security/2fa/setup', adminAuth, async (req, res) => {
+  const db = getDb();
+  const admin = db.prepare('SELECT username FROM admins WHERE id = ?').get(req.user.id);
+  if (!admin) return res.status(404).json({ success: false, error: 'Admin not found' });
+
+  const secret = speakeasy.generateSecret({ name: `Elahe Panel (${admin.username})` });
+  const qr = await qrcode.toDataURL(secret.otpauth_url);
+  db.prepare('UPDATE admins SET totp_secret = ?, totp_enabled = 0 WHERE id = ?')
+    .run(secret.base32, req.user.id);
+  res.json({ success: true, secret: secret.base32, qr });
+});
+
+router.post('/security/2fa/enable', adminAuth, (req, res) => {
+  const { otp } = req.body;
+  const db = getDb();
+  const admin = db.prepare('SELECT totp_secret FROM admins WHERE id = ?').get(req.user.id);
+  if (!admin?.totp_secret) return res.status(400).json({ success: false, error: '2FA not initialized' });
+
+  const valid = speakeasy.totp.verify({ secret: admin.totp_secret, encoding: 'base32', token: otp, window: 1 });
+  if (!valid) return res.status(400).json({ success: false, error: 'Invalid authentication code' });
+
+  db.prepare('UPDATE admins SET totp_enabled = 1, totp_verified_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(req.user.id);
+  res.json({ success: true });
+});
+
+router.post('/security/2fa/disable', adminAuth, (req, res) => {
+  const { otp } = req.body;
+  const db = getDb();
+  const admin = db.prepare('SELECT totp_secret, totp_enabled FROM admins WHERE id = ?').get(req.user.id);
+  if (!admin?.totp_enabled) return res.status(400).json({ success: false, error: '2FA already disabled' });
+
+  const valid = speakeasy.totp.verify({ secret: admin.totp_secret, encoding: 'base32', token: otp, window: 1 });
+  if (!valid) return res.status(400).json({ success: false, error: 'Invalid authentication code' });
+
+  db.prepare('UPDATE admins SET totp_enabled = 0 WHERE id = ?').run(req.user.id);
   res.json({ success: true });
 });
 

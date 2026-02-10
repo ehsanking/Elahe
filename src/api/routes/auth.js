@@ -1,6 +1,6 @@
 /**
  * Elahe Panel - Auth Routes
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const express = require('express');
@@ -17,7 +17,7 @@ router.get('/captcha', (req, res) => {
 // Admin login
 router.post('/login', async (req, res) => {
   const msg = AuthService.getMessages();
-  const { username, password, captchaId, captchaAnswer } = req.body;
+  const { username, password, captchaId, captchaAnswer, otp } = req.body;
 
   if (!CaptchaService.verify(captchaId, captchaAnswer)) {
     return res.status(400).json({ success: false, error: msg.invalidCaptcha });
@@ -28,14 +28,20 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const result = await AuthService.adminLogin(username, password);
+    const result = await AuthService.adminLogin(username, password, otp);
     
     if (result.success) {
-      res.cookie('token', result.token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+      res.cookie('token', result.token, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isSecure,
+        maxAge: 24 * 60 * 60 * 1000,
+      });
       return res.json({ success: true, token: result.token, admin: result.admin });
     }
     
-    res.status(401).json({ success: false, error: result.error });
+    res.status(401).json({ success: false, error: result.error, code: result.code });
   } catch (err) {
     res.status(500).json({ success: false, error: msg.serverError });
   }

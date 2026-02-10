@@ -2,7 +2,7 @@
  * Elahe Panel - Core Engine Management Service
  * Manage Xray/Sing-box versions, start/stop/restart
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const { getDb } = require('../../database');

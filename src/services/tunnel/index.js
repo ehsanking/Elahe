@@ -4,7 +4,7 @@
  * Monitors tunnels every 10 minutes and switches to best available
  * 
  * Developer: EHSANKiNG
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 const { getDb } = require('../../database');
