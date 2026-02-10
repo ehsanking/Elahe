@@ -8,6 +8,7 @@
 const { getDb } = require('../../database');
 const { createLogger } = require('../../utils/logger');
 const config = require('../../config/default');
+const autopilotService = require('../../services/autopilot');
 
 // Import all tunnel engines
 const sshEngine = require('./ssh');
@@ -95,7 +96,7 @@ class TunnelManager {
   }
 
   /**
-   * Create and start a tunnel
+   * Create and start a tunnel with random port assignment
    */
   async createTunnel(options) {
     const {
@@ -122,8 +123,14 @@ class TunnelManager {
       return { success: false, error: 'Iran or Foreign server not found' };
     }
 
+    // Get random port if not specified
+    let assignedPort = port;
+    if (!assignedPort) {
+      assignedPort = autopilotService.getRandomPort();
+    }
+
     // Create DB record
-    const tunnelId = `${engineName}-${iranServer.id}-${foreignServer.id}-${port}`;
+    const tunnelId = `${engineName}-${iranServer.id}-${foreignServer.id}-${assignedPort}`;
     const result = db.prepare(`
       INSERT INTO tunnels (iran_server_id, foreign_server_id, protocol, transport, port, config, priority, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
@@ -132,23 +139,31 @@ class TunnelManager {
       foreignServerId,
       engineName,
       transport,
-      port,
+      assignedPort,
       JSON.stringify({ ...tunnelConfig, engine: engineName }),
       engineDef.priority
     );
 
     const dbTunnel = db.prepare('SELECT * FROM tunnels WHERE id = ?').get(result.lastInsertRowid);
 
+    // Register with autopilot
+    autopilotService.activeTunnels.set(String(dbTunnel.id), {
+      engine: engineName,
+      port: assignedPort,
+      status: 'active',
+      assignedAt: new Date().toISOString(),
+    });
+
     // Start the engine
     const startOpts = {
       iranServerIp: iranServer.ip,
       foreignServerIp: foreignServer.ip,
       foreignServerPort: foreignServer.port || 22,
-      listenPort: port,
-      localPort: port,
-      remotePort: tunnelConfig.remotePort || port,
+      listenPort: assignedPort,
+      localPort: assignedPort,
+      remotePort: tunnelConfig.remotePort || assignedPort,
       targetAddr: foreignServer.ip,
-      targetPort: tunnelConfig.targetPort || port,
+      targetPort: tunnelConfig.targetPort || 443,
       tlsEnabled: tunnelConfig.tlsEnabled !== false,
       ...tunnelConfig,
     };
@@ -163,10 +178,11 @@ class TunnelManager {
         startOpts,
       });
 
-      log.info('Tunnel created and started', { tunnelId, engine: engineName, port });
+      log.info('Tunnel created and started', { tunnelId, engine: engineName, port: assignedPort });
     } else {
-      // Mark as failed in DB
+      // Mark as failed in DB and release port
       db.prepare("UPDATE tunnels SET status = 'failed' WHERE id = ?").run(dbTunnel.id);
+      autopilotService.releasePort(assignedPort);
     }
 
     return {
@@ -174,6 +190,7 @@ class TunnelManager {
       tunnelId,
       dbId: dbTunnel.id,
       engine: engineName,
+      port: assignedPort,
       ...startResult,
     };
   }
@@ -188,6 +205,11 @@ class TunnelManager {
       const db = getDb();
       const dbTunnel = db.prepare('SELECT * FROM tunnels WHERE id = ?').get(tunnelId);
       if (dbTunnel) {
+        // Release port and remove from autopilot
+        if (dbTunnel.port) {
+          autopilotService.releasePort(dbTunnel.port);
+          autopilotService.activeTunnels.delete(String(tunnelId));
+        }
         db.prepare("UPDATE tunnels SET status = 'inactive' WHERE id = ?").run(tunnelId);
         return { success: true, note: 'DB record updated, no active process found' };
       }
@@ -200,6 +222,13 @@ class TunnelManager {
     if (result.success) {
       const db = getDb();
       db.prepare("UPDATE tunnels SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(info.dbId);
+      
+      // Release port and remove from autopilot
+      if (info.dbRecord && info.dbRecord.port) {
+        autopilotService.releasePort(info.dbRecord.port);
+      }
+      autopilotService.activeTunnels.delete(String(info.dbId));
+      
       this.activeTunnels.delete(tunnelId);
     }
 
@@ -261,7 +290,7 @@ class TunnelManager {
 
   /**
    * Get recommended tunnel setup for a server pair
-   * Returns optimal tunnel configuration based on network conditions
+   * Returns optimal tunnel configuration with random port assignment
    */
   getRecommendedSetup(iranServer, foreignServer) {
     const recommendations = [
@@ -292,10 +321,10 @@ class TunnelManager {
       {
         priority: 2,
         engine: 'frp',
-        name: 'FRP Backup',
-        description: 'FRP with TLS encryption',
+        name: 'FRP Tunnel',
+        description: 'FRP with TLS encryption - random port assigned on creation',
         config: {
-          port: 7000,
+          port: 'random', // Will be assigned on creation
           transport: 'tcp+tls',
           tlsEnabled: true,
         },
@@ -303,10 +332,10 @@ class TunnelManager {
       {
         priority: 2,
         engine: 'gost',
-        name: 'GOST TLS Backup',
-        description: 'GOST with TLS transport',
+        name: 'GOST TLS',
+        description: 'GOST with TLS transport - random port assigned on creation',
         config: {
-          port: 8388,
+          port: 'random', // Will be assigned on creation
           transport: 'tls',
           mode: 'relay',
         },
@@ -314,10 +343,10 @@ class TunnelManager {
       {
         priority: 2,
         engine: 'gost',
-        name: 'GOST QUIC Backup',
-        description: 'GOST with QUIC transport',
+        name: 'GOST QUIC',
+        description: 'GOST with QUIC transport - random port assigned on creation',
         config: {
-          port: 4433,
+          port: 'random', // Will be assigned on creation
           transport: 'quic',
           mode: 'relay',
         },
@@ -325,10 +354,10 @@ class TunnelManager {
       {
         priority: 2,
         engine: 'chisel',
-        name: 'Chisel Backup',
-        description: 'Chisel HTTP tunnel with TLS',
+        name: 'Chisel Tunnel',
+        description: 'Chisel HTTP tunnel with TLS - random port assigned on creation',
         config: {
-          port: 9443,
+          port: 'random', // Will be assigned on creation
           transport: 'https/websocket',
           tlsEnabled: true,
         },
@@ -336,10 +365,10 @@ class TunnelManager {
       {
         priority: 3,
         engine: 'ssh',
-        name: 'SSH Fallback',
-        description: 'SSH tunnel as last resort',
+        name: 'SSH Tunnel',
+        description: 'SSH tunnel - random port assigned on creation',
         config: {
-          port: 22,
+          port: 'random', // Will be assigned on creation
           transport: 'ssh',
           type: 'local',
         },
@@ -351,12 +380,14 @@ class TunnelManager {
       foreignServer: { id: foreignServer.id, name: foreignServer.name, ip: foreignServer.ip },
       recommendations,
       totalChannels: recommendations.length,
-      note: 'Primary = VLESS+Reality | Secondary = TrustTunnel | Backup = FRP/GOST/Chisel | Fallback = SSH',
+      mode: 'all_active_random_ports',
+      note: 'All tunnels remain active on randomly assigned ports (10000-65000). No manual selection needed.',
     };
   }
 
   /**
    * Auto-setup all recommended tunnels for a server pair
+   * All tunnels get random port assignments and stay active
    */
   async autoSetup(iranServerId, foreignServerId) {
     const db = getDb();
@@ -381,18 +412,32 @@ class TunnelManager {
         continue;
       }
 
+      // Skip fixed-port services (TrustTunnel, OpenVPN, WireGuard) 
+      // as they're managed separately
+      if (['trusttunnel', 'openvpn', 'wireguard'].includes(rec.engine)) {
+        results.push({
+          engine: rec.engine,
+          name: rec.name,
+          status: 'skipped_fixed_port_service',
+          note: `${rec.engine} uses fixed ports and is managed separately`,
+        });
+        continue;
+      }
+
       try {
+        // Create tunnel with random port (don't specify port)
         const result = await this.createTunnel({
           engine: rec.engine,
           iranServerId,
           foreignServerId,
-          port: rec.config.port,
+          // port is omitted - will be randomly assigned
           transport: rec.config.transport,
           tunnelConfig: rec.config,
         });
         results.push({
           engine: rec.engine,
           name: rec.name,
+          assignedPort: result.port,
           ...result,
         });
       } catch (err) {
@@ -407,6 +452,7 @@ class TunnelManager {
 
     return {
       success: true,
+      mode: 'all_active_random_ports',
       iranServer: iranServer.name,
       foreignServer: foreignServer.name,
       tunnelsCreated: results.filter(r => r.success).length,

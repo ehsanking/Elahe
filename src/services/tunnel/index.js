@@ -1,7 +1,7 @@
 /**
- * Elahe Panel - Tunnel Management & Auto-Switch Service
- * Integrates with Autopilot for automatic best tunnel selection
- * Monitors tunnels every 10 minutes and switches to best available
+ * Elahe Panel - Tunnel Management Service
+ * All tunnels remain active on random ports
+ * Monitoring tracks quality without switching
  * 
  * Developer: EHSANKiNG
  * Version: 0.0.5
@@ -16,26 +16,42 @@ const log = createLogger('TunnelService');
 
 class TunnelService {
   /**
-   * Add a new tunnel configuration
+   * Add a new tunnel configuration with random port assignment
    */
   static addTunnel(data) {
     const db = getDb();
     try {
+      // Get random port from autopilot service if not specified
+      let port = data.port;
+      if (!port) {
+        port = autopilotService.getRandomPort();
+      }
+
       const result = db.prepare(`
-        INSERT INTO tunnels (iran_server_id, foreign_server_id, protocol, transport, port, config, priority)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tunnels (iran_server_id, foreign_server_id, protocol, transport, port, config, priority, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
       `).run(
         data.iranServerId,
         data.foreignServerId,
         data.protocol,
         data.transport || 'tcp',
-        data.port,
+        port,
         JSON.stringify(data.config || {}),
         data.priority || 0
       );
 
-      log.info('Tunnel added', { protocol: data.protocol, port: data.port });
-      return { success: true, tunnel: db.prepare('SELECT * FROM tunnels WHERE id = ?').get(result.lastInsertRowid) };
+      const tunnel = db.prepare('SELECT * FROM tunnels WHERE id = ?').get(result.lastInsertRowid);
+      
+      // Register with autopilot
+      autopilotService.activeTunnels.set(String(tunnel.id), {
+        engine: data.protocol,
+        port: port,
+        status: 'active',
+        assignedAt: new Date().toISOString(),
+      });
+
+      log.info('Tunnel added with random port', { protocol: data.protocol, port, tunnelId: tunnel.id });
+      return { success: true, tunnel };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -56,23 +72,23 @@ class TunnelService {
     // Enrich with autopilot status
     const status = autopilotService.getStatus();
     tunnels.forEach(t => {
-      t.autopilotPrimary = (t.protocol === status.primary443 && t.port === 443);
       t.autopilotAlwaysOn = !!status.portAllocation?.alwaysOn?.[t.protocol];
+      t.isActive = t.status === 'active';
     });
 
     return tunnels;
   }
 
   /**
-   * Get active/primary tunnel
+   * Get all active tunnels for a server
    */
-  static getActiveTunnel(iranServerId) {
+  static getActiveTunnels(iranServerId) {
     const db = getDb();
     return db.prepare(`
       SELECT * FROM tunnels 
-      WHERE iran_server_id = ? AND status = 'active' AND is_primary = 1 
-      ORDER BY score DESC LIMIT 1
-    `).get(iranServerId);
+      WHERE iran_server_id = ? AND status = 'active'
+      ORDER BY score DESC
+    `).all(iranServerId);
   }
 
   /**
@@ -118,15 +134,15 @@ class TunnelService {
 
   /**
    * Run full monitoring cycle
-   * Delegates to autopilot for intelligent tunnel selection
+   * Monitors all active tunnels without switching
    */
   static async runMonitoringCycle() {
-    log.info('Starting monitoring cycle (with Autopilot)...');
+    log.info('Starting monitoring cycle (all tunnels active mode)...');
     
     // Run autopilot monitoring cycle
     const autopilotResult = await autopilotService.runMonitoringCycle();
 
-    // Also check DB-registered tunnels
+    // Check DB-registered tunnels
     const db = getDb();
     const tunnels = db.prepare("SELECT * FROM tunnels WHERE status != 'inactive'").all();
     
@@ -155,45 +171,17 @@ class TunnelService {
       tunnelResults.push({ tunnelId: tunnel.id, protocol: tunnel.protocol, ...health });
     }
 
-    // Auto-switch logic: find best tunnel per iran_server
-    const iranServerIds = [...new Set(tunnels.map(t => t.iran_server_id))];
-    let switched = false;
-
-    for (const iranId of iranServerIds) {
-      const serverTunnels = tunnelResults
-        .filter(r => {
-          const t = tunnels.find(t => t.id === r.tunnelId);
-          return t && t.iran_server_id === iranId;
-        })
-        .sort((a, b) => b.score - a.score);
-
-      if (serverTunnels.length === 0) continue;
-
-      const best = serverTunnels[0];
-      const currentPrimary = db.prepare(`
-        SELECT * FROM tunnels WHERE iran_server_id = ? AND is_primary = 1
-      `).get(iranId);
-
-      if (!currentPrimary || best.tunnelId !== currentPrimary.id) {
-        if (!currentPrimary || currentPrimary.status === 'failed' || best.score > (currentPrimary?.score || 0) * 1.2) {
-          db.prepare('UPDATE tunnels SET is_primary = 0 WHERE iran_server_id = ?').run(iranId);
-          db.prepare('UPDATE tunnels SET is_primary = 1 WHERE id = ?').run(best.tunnelId);
-          log.info(`Switched primary tunnel for server ${iranId} to tunnel ${best.tunnelId} (${best.protocol}), score: ${best.score}`);
-          switched = true;
-        }
-      }
-    }
-
     // Cleanup old monitor results (keep last 24h)
     db.prepare("DELETE FROM monitor_results WHERE checked_at < datetime('now', '-1 day')").run();
 
-    log.info(`Monitoring cycle complete: checked ${tunnelResults.length} DB tunnels + autopilot engines, switched: ${switched}`);
+    log.info(`Monitoring cycle complete: checked ${tunnelResults.length} DB tunnels + autopilot engines`);
     
     return {
       checked: tunnelResults.length,
-      switched,
+      active: tunnelResults.filter(r => r.status !== 'failed').length,
       results: tunnelResults,
       autopilot: autopilotResult,
+      mode: 'all_active_no_switching',
     };
   }
 
@@ -212,6 +200,14 @@ class TunnelService {
    */
   static deleteTunnel(id) {
     const db = getDb();
+    
+    // Get tunnel info to release port
+    const tunnel = db.prepare('SELECT port FROM tunnels WHERE id = ?').get(id);
+    if (tunnel && tunnel.port) {
+      autopilotService.releasePort(tunnel.port);
+      autopilotService.activeTunnels.delete(String(id));
+    }
+    
     db.prepare('DELETE FROM monitor_results WHERE tunnel_id = ?').run(id);
     db.prepare('DELETE FROM tunnels WHERE id = ?').run(id);
     return { success: true };
@@ -228,14 +224,15 @@ class TunnelService {
       total: db.prepare('SELECT COUNT(*) as c FROM tunnels').get().c,
       active: db.prepare("SELECT COUNT(*) as c FROM tunnels WHERE status = 'active'").get().c,
       failed: db.prepare("SELECT COUNT(*) as c FROM tunnels WHERE status = 'failed'").get().c,
-      primary: db.prepare('SELECT COUNT(*) as c FROM tunnels WHERE is_primary = 1').get().c,
+      inactive: db.prepare("SELECT COUNT(*) as c FROM tunnels WHERE status = 'inactive'").get().c,
       autopilot: {
         enabled: autopilotStatus.enabled,
-        primary443: autopilotStatus.primary443,
         state: autopilotStatus.state,
         lastCycle: autopilotStatus.lastMonitorCycle,
-        switchCount: autopilotStatus.switchCount,
+        tunnelCount: autopilotStatus.tunnelCount,
+        mode: autopilotStatus.mode,
       },
+      portAllocation: autopilotStatus.portAllocation,
     };
   }
 
@@ -254,10 +251,16 @@ class TunnelService {
   }
 
   /**
-   * Set primary tunnel for port 443 manually
+   * DEPRECATED: Manual tunnel selection removed
+   * All tunnels are kept active on random ports
    */
   static setPrimary443(engineName) {
-    return autopilotService.setPrimary443(engineName);
+    log.warn('setPrimary443 is deprecated - all tunnels are kept active');
+    return {
+      success: false,
+      error: 'Manual tunnel selection is disabled. All tunnels are kept active on random ports.',
+      mode: 'all_active',
+    };
   }
 
   /**

@@ -1,12 +1,13 @@
 /**
  * Elahe Panel - Autopilot Tunnel Management Service
- * Automatically manages all tunnels with intelligent selection
+ * Manages all tunnels with random port assignment - all tunnels stay active
  * 
  * Rules:
- * - OpenVPN and WireGuard always active on their dedicated ports
- * - TrustTunnel always active on port 8443
- * - Port 443 used for other tunnels (SSH, FRP, GOST, Chisel)
- * - Best tunnel on port 443 selected after 10-minute monitoring cycle
+ * - All tunnel engines stay active on randomly assigned ports
+ * - OpenVPN and WireGuard use their dedicated port ranges
+ * - TrustTunnel uses port 8443
+ * - SSH, FRP, GOST, Chisel get random ports from dynamic range
+ * - Monitoring tracks quality metrics without switching
  * - All tunnel engines installed by default
  * 
  * Developer: EHSANKiNG
@@ -21,31 +22,23 @@ const tunnelManager = require('../../tunnel/engines/manager');
 const log = createLogger('Autopilot');
 
 /**
- * Port allocation strategy
+ * Port allocation strategy - all tunnels active on random ports
  */
 const PORT_RULES = {
-  // Always-on services with dedicated ports
+  // Always-on services with dedicated/fixed ports
   alwaysOn: {
     openvpn: { ports: config.ports.openvpn, protocol: 'openvpn', description: 'OpenVPN - Always active on dedicated ports' },
     wireguard: { ports: config.ports.wireguard, protocol: 'wireguard', description: 'WireGuard - Always active on dedicated ports' },
     trusttunnel: { ports: [config.ports.trusttunnel], protocol: 'trusttunnel', description: 'TrustTunnel HTTP/3 - Always active on port 8443' },
   },
 
-  // Competing tunnels on port 443 - only best one active at a time
-  port443: {
-    port: 443,
+  // Dynamic port range for tunnel engines - all active simultaneously
+  dynamicPorts: {
+    minPort: 10000,
+    maxPort: 65000,
     candidates: ['ssh', 'frp', 'gost', 'chisel'],
-    description: 'Best tunnel selected after 10-min monitoring cycle',
-    selectionCriteria: {
-      // Score weights (0-1): latency matters most, then jitter, then packet loss
-      latencyWeight: 0.4,
-      jitterWeight: 0.3,
-      packetLossWeight: 0.3,
-      // Minimum score to be considered viable
-      minimumViableScore: 20,
-      // Improvement threshold to switch (20% better required to switch)
-      switchThreshold: 1.2,
-    },
+    description: 'All tunnels active on randomly assigned ports',
+    assignment: 'random',
   },
 
   // Protocol layer on port 443 (managed by Xray/Sing-box, not tunnel engines)
@@ -71,12 +64,51 @@ const STATE = {
 class AutopilotService {
   constructor() {
     this.state = STATE.IDLE;
-    this.activePrimary443 = null; // Currently active tunnel engine on port 443
     this.lastMonitorCycle = null;
     this.monitorResults = new Map(); // engineName -> { score, latency, jitter, packetLoss, timestamp }
     this.alwaysOnStatus = new Map(); // protocol -> { active, port, lastCheck }
+    this.activeTunnels = new Map(); // tunnelId -> { engine, port, status, assignedAt }
+    this.assignedPorts = new Set(); // Track assigned ports to avoid conflicts
     this.initialized = false;
     this.monitorInterval = null;
+  }
+
+  /**
+   * Generate a random port in the dynamic range
+   */
+  getRandomPort() {
+    const { minPort, maxPort } = PORT_RULES.dynamicPorts;
+    let attempts = 0;
+    let port;
+    
+    do {
+      port = Math.floor(Math.random() * (maxPort - minPort + 1)) + minPort;
+      attempts++;
+    } while (this.assignedPorts.has(port) && attempts < 100);
+    
+    if (attempts >= 100) {
+      log.warn('Could not find unique random port after 100 attempts');
+    }
+    
+    this.assignedPorts.add(port);
+    return port;
+  }
+
+  /**
+   * Release a port back to the pool
+   */
+  releasePort(port) {
+    this.assignedPorts.delete(port);
+  }
+
+  /**
+   * Get all active tunnels with their assigned ports
+   */
+  getActiveTunnels() {
+    return Array.from(this.activeTunnels.entries()).map(([id, info]) => ({
+      tunnelId: id,
+      ...info,
+    }));
   }
 
   /**
@@ -89,7 +121,7 @@ class AutopilotService {
     log.info('Initializing Autopilot Tunnel Management...');
     log.info('Port allocation rules:', {
       alwaysOn: Object.entries(PORT_RULES.alwaysOn).map(([k, v]) => `${k}: ports ${v.ports.join(',')}`),
-      port443: `Best of: ${PORT_RULES.port443.candidates.join(', ')}`,
+      dynamicPorts: `All active: ${PORT_RULES.dynamicPorts.candidates.join(', ')} (random ports ${PORT_RULES.dynamicPorts.minPort}-${PORT_RULES.dynamicPorts.maxPort})`,
       protocolLayer: Object.keys(PORT_RULES.protocolLayer).join(', '),
     });
 
@@ -105,29 +137,40 @@ class AutopilotService {
       log.info(`Always-on service registered: ${name} on ports ${rule.ports.join(',')}`);
     }
 
-    // Initialize default primary for port 443
-    // Try to get from DB or default to gost (best overall for Iran censorship)
+    // Initialize dynamic tunnel ports from existing tunnels in DB
     const db = getDb();
-    try {
-      const savedPrimary = db.prepare("SELECT value FROM settings WHERE key = 'autopilot.primary443'").get();
-      if (savedPrimary && PORT_RULES.port443.candidates.includes(savedPrimary.value)) {
-        this.activePrimary443 = savedPrimary.value;
-      } else {
-        this.activePrimary443 = 'gost'; // Default: GOST has TLS+QUIC, good for censorship bypass
-      }
-    } catch (e) {
-      this.activePrimary443 = 'gost';
-    }
-
-    log.info(`Initial primary tunnel for port 443: ${this.activePrimary443}`);
+    this._loadExistingTunnelPorts(db);
 
     // Ensure autopilot settings exist in DB
     this._ensureSettings(db);
 
     this.initialized = true;
-    log.info('Autopilot initialized successfully');
+    log.info('Autopilot initialized successfully - all tunnels active mode');
     
     return this.getStatus();
+  }
+
+  /**
+   * Load existing tunnel ports from database
+   */
+  _loadExistingTunnelPorts(db) {
+    try {
+      const tunnels = db.prepare("SELECT id, protocol, port FROM tunnels WHERE status = 'active'").all();
+      for (const tunnel of tunnels) {
+        if (tunnel.port) {
+          this.assignedPorts.add(tunnel.port);
+          this.activeTunnels.set(String(tunnel.id), {
+            engine: tunnel.protocol,
+            port: tunnel.port,
+            status: 'active',
+            assignedAt: new Date().toISOString(),
+          });
+        }
+      }
+      log.info(`Loaded ${tunnels.length} existing tunnels with assigned ports`);
+    } catch (e) {
+      log.warn('Could not load existing tunnel ports:', e.message);
+    }
   }
 
   /**
@@ -137,17 +180,19 @@ class AutopilotService {
     const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
     const tx = db.transaction(() => {
       insert.run('autopilot.enabled', 'true');
-      insert.run('autopilot.primary443', this.activePrimary443);
       insert.run('autopilot.monitorInterval', String(config.tunnel.monitorInterval));
       insert.run('autopilot.lastCycle', '');
-      insert.run('autopilot.switchCount', '0');
+      insert.run('autopilot.tunnelCount', '0');
+      // Remove legacy setting if exists
+      db.prepare("DELETE FROM settings WHERE key = 'autopilot.primary443'").run();
+      db.prepare("DELETE FROM settings WHERE key = 'autopilot.switchCount'").run();
     });
     tx();
   }
 
   /**
    * Run a full monitoring cycle
-   * Tests all port-443 tunnel candidates and selects the best one
+   * Tests all active tunnels and updates quality metrics without switching
    */
   async runMonitoringCycle() {
     if (this.state === STATE.MONITORING) {
@@ -156,14 +201,14 @@ class AutopilotService {
     }
 
     this.state = STATE.MONITORING;
-    log.info('Starting autopilot monitoring cycle...');
+    log.info('Starting autopilot monitoring cycle (all tunnels active mode)...');
 
     const db = getDb();
     const startTime = Date.now();
     const results = [];
 
-    // 1. Check all port-443 candidates
-    for (const engineName of PORT_RULES.port443.candidates) {
+    // 1. Check all dynamic port tunnel candidates (all active)
+    for (const engineName of PORT_RULES.dynamicPorts.candidates) {
       const health = await this._testEngine(engineName);
       this.monitorResults.set(engineName, {
         ...health,
@@ -184,8 +229,8 @@ class AutopilotService {
       });
     }
 
-    // 3. Select best tunnel for port 443
-    const switchResult = await this._selectBestTunnel(results);
+    // 3. Update active tunnels status (no switching, just monitoring)
+    this._updateTunnelStatuses(db, results);
 
     // 4. Save monitoring results to DB
     this._saveMonitorResults(db, results);
@@ -197,6 +242,10 @@ class AutopilotService {
     // Update settings
     db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('autopilot.lastCycle', ?, CURRENT_TIMESTAMP)")
       .run(this.lastMonitorCycle);
+    
+    // Update tunnel count
+    db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('autopilot.tunnelCount', ?, CURRENT_TIMESTAMP)")
+      .run(String(this.activeTunnels.size));
 
     const report = {
       timestamp: this.lastMonitorCycle,
@@ -209,19 +258,36 @@ class AutopilotService {
         jitter: r.jitter,
         status: r.status,
       })),
-      primaryEngine: this.activePrimary443,
-      switched: switchResult.switched,
-      switchReason: switchResult.reason,
+      activeTunnels: this.activeTunnels.size,
       alwaysOnStatus: Object.fromEntries(this.alwaysOnStatus),
+      mode: 'all_active_no_switching',
     };
 
     log.info('Monitoring cycle complete', {
       duration: `${cycleDuration}ms`,
-      primary: this.activePrimary443,
-      switched: switchResult.switched,
+      activeTunnels: this.activeTunnels.size,
+      checked: results.length,
     });
 
     return report;
+  }
+
+  /**
+   * Update tunnel statuses in database (monitoring only, no switching)
+   */
+  _updateTunnelStatuses(db, results) {
+    for (const result of results) {
+      try {
+        // Update any tunnels using this engine
+        db.prepare(`
+          UPDATE tunnels SET 
+            score = ?, latency_ms = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE protocol = ? AND status = 'active'
+        `).run(result.score, result.latency, result.status === 'failed' ? 'failed' : 'active', result.engine);
+      } catch (e) {
+        log.warn(`Failed to update tunnel status for ${result.engine}:`, e.message);
+      }
+    }
   }
 
   /**
@@ -256,12 +322,8 @@ class AutopilotService {
       : 0;
     const packetLoss = ((PING_COUNT - successful.length) / PING_COUNT) * 100;
 
-    const criteria = PORT_RULES.port443.selectionCriteria;
-    const score = Math.max(0, 100 - (
-      avgLatency * criteria.latencyWeight +
-      jitter * criteria.jitterWeight +
-      packetLoss * 20 * criteria.packetLossWeight
-    ));
+    // Simple scoring without selection criteria (monitoring only)
+    const score = Math.max(0, 100 - (avgLatency * 0.3 + jitter * 0.5 + packetLoss * 2));
 
     return {
       status: score > 50 ? 'optimal' : score > 20 ? 'degraded' : 'poor',
@@ -304,62 +366,6 @@ class AutopilotService {
   }
 
   /**
-   * Select best tunnel for port 443 based on monitoring results
-   */
-  async _selectBestTunnel(results) {
-    const criteria = PORT_RULES.port443.selectionCriteria;
-
-    // Filter viable candidates
-    const viable = results
-      .filter(r => r.score >= criteria.minimumViableScore && r.status !== 'failed')
-      .sort((a, b) => b.score - a.score);
-
-    if (viable.length === 0) {
-      log.warn('No viable tunnels found for port 443! Keeping current:', this.activePrimary443);
-      return { switched: false, reason: 'no_viable_candidates' };
-    }
-
-    const best = viable[0];
-    const currentResult = results.find(r => r.engine === this.activePrimary443);
-
-    // Check if switch is needed
-    if (this.activePrimary443 === best.engine) {
-      return { switched: false, reason: 'current_is_best' };
-    }
-
-    // Only switch if significantly better
-    if (currentResult && currentResult.status !== 'failed') {
-      if (best.score < currentResult.score * criteria.switchThreshold) {
-        return { switched: false, reason: 'improvement_below_threshold' };
-      }
-    }
-
-    // Switch!
-    const previousEngine = this.activePrimary443;
-    this.activePrimary443 = best.engine;
-
-    // Save to DB
-    const db = getDb();
-    db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('autopilot.primary443', ?, CURRENT_TIMESTAMP)")
-      .run(this.activePrimary443);
-    
-    // Increment switch counter
-    const switchCount = db.prepare("SELECT value FROM settings WHERE key = 'autopilot.switchCount'").get();
-    const newCount = (parseInt(switchCount?.value || '0') + 1);
-    db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('autopilot.switchCount', ?, CURRENT_TIMESTAMP)")
-      .run(String(newCount));
-
-    log.info(`Autopilot switched primary tunnel: ${previousEngine} -> ${best.engine} (score: ${best.score}, latency: ${best.latency}ms)`);
-
-    return {
-      switched: true,
-      reason: `better_performance: ${best.engine} (score=${best.score}) > ${previousEngine} (score=${currentResult?.score || 0})`,
-      previousEngine,
-      newEngine: best.engine,
-    };
-  }
-
-  /**
    * Save monitor results to DB
    */
   _saveMonitorResults(db, results) {
@@ -371,7 +377,7 @@ class AutopilotService {
     const tx = db.transaction(() => {
       for (const r of results) {
         // Use a virtual tunnel_id based on engine name (negative IDs for autopilot)
-        const virtualId = -1 * (PORT_RULES.port443.candidates.indexOf(r.engine) + 1);
+        const virtualId = -1 * (PORT_RULES.dynamicPorts.candidates.indexOf(r.engine) + 1);
         insert.run(virtualId || -99, r.latency, r.jitter, r.packetLoss, r.score, r.status);
       }
     });
@@ -384,26 +390,16 @@ class AutopilotService {
   }
 
   /**
-   * Manually set primary tunnel for port 443
+   * DEPRECATED: Manual tunnel selection removed - all tunnels now active
+   * This method is kept for API compatibility but returns a message
    */
   setPrimary443(engineName) {
-    if (!PORT_RULES.port443.candidates.includes(engineName)) {
-      return { success: false, error: `Invalid engine. Must be one of: ${PORT_RULES.port443.candidates.join(', ')}` };
-    }
-
-    const previous = this.activePrimary443;
-    this.activePrimary443 = engineName;
-
-    const db = getDb();
-    db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('autopilot.primary443', ?, CURRENT_TIMESTAMP)")
-      .run(engineName);
-
-    log.info(`Manual tunnel switch: ${previous} -> ${engineName}`);
-
+    log.info('setPrimary443 called but manual selection is disabled - all tunnels active');
     return {
-      success: true,
-      previousEngine: previous,
-      newEngine: engineName,
+      success: false,
+      error: 'Manual tunnel selection is disabled. All tunnels are kept active on random ports.',
+      mode: 'all_active',
+      activeTunnels: this.activeTunnels.size,
     };
   }
 
@@ -422,17 +418,19 @@ class AutopilotService {
       initialized: this.initialized,
       state: this.state,
       enabled: settings.enabled !== 'false',
-      primary443: this.activePrimary443,
       lastMonitorCycle: this.lastMonitorCycle || settings.lastCycle || null,
-      switchCount: parseInt(settings.switchCount || '0'),
+      tunnelCount: parseInt(settings.tunnelCount || '0'),
       monitorInterval: config.tunnel.monitorInterval,
+      mode: 'all_active_no_switching',
 
       // Port rules
       portAllocation: {
-        port443: {
-          activeEngine: this.activePrimary443,
-          candidates: PORT_RULES.port443.candidates,
-          description: PORT_RULES.port443.description,
+        dynamicPorts: {
+          minPort: PORT_RULES.dynamicPorts.minPort,
+          maxPort: PORT_RULES.dynamicPorts.maxPort,
+          candidates: PORT_RULES.dynamicPorts.candidates,
+          description: PORT_RULES.dynamicPorts.description,
+          assignedPorts: Array.from(this.assignedPorts),
         },
         alwaysOn: Object.fromEntries(
           Object.entries(PORT_RULES.alwaysOn).map(([k, v]) => [k, {
@@ -445,6 +443,9 @@ class AutopilotService {
         protocolLayer: PORT_RULES.protocolLayer,
       },
 
+      // Active tunnels
+      activeTunnels: this.getActiveTunnels(),
+
       // Latest monitor results
       latestResults: Object.fromEntries(this.monitorResults),
 
@@ -456,19 +457,20 @@ class AutopilotService {
   /**
    * Get deployment configuration for a server pair
    * Returns all configs needed for Iran <-> Foreign tunnel setup
+   * All tunnel engines get random ports and stay active
    */
   getDeploymentPlan(iranServer, foreignServer) {
     const plan = {
       iranServer: { id: iranServer.id, name: iranServer.name, ip: iranServer.ip },
       foreignServer: { id: foreignServer.id, name: foreignServer.name, ip: foreignServer.ip },
-      mode: 'autopilot',
+      mode: 'all_active',
       timestamp: new Date().toISOString(),
 
       // Always-on tunnels
       alwaysOn: [],
 
-      // Port 443 competing tunnels (all deployed, only best activated)
-      port443Candidates: [],
+      // Dynamic port tunnels (all active with random ports)
+      dynamicPortTunnels: [],
 
       // Protocol layer configs
       protocolLayer: [],
@@ -514,50 +516,27 @@ class AutopilotService {
       });
     }
 
-    // 4. Port 443 candidates (all deployed, autopilot selects best)
-    const port443Engines = [
-      {
-        engine: 'gost',
-        name: 'GOST (TLS)',
-        transport: 'tls',
-        priority: 1,
-      },
-      {
-        engine: 'gost',
-        name: 'GOST (QUIC)',
-        transport: 'quic',
-        priority: 1,
-      },
-      {
-        engine: 'frp',
-        name: 'FRP (TLS)',
-        transport: 'tcp+tls',
-        priority: 2,
-      },
-      {
-        engine: 'chisel',
-        name: 'Chisel (TLS/WS)',
-        transport: 'https/websocket',
-        priority: 2,
-      },
-      {
-        engine: 'ssh',
-        name: 'SSH Tunnel',
-        transport: 'ssh',
-        priority: 3,
-      },
+    // 4. Dynamic port tunnels (all active with random ports)
+    const dynamicEngines = [
+      { engine: 'gost', name: 'GOST (TLS)', transport: 'tls' },
+      { engine: 'gost', name: 'GOST (QUIC)', transport: 'quic' },
+      { engine: 'frp', name: 'FRP (TLS)', transport: 'tcp+tls' },
+      { engine: 'chisel', name: 'Chisel (TLS/WS)', transport: 'https/websocket' },
+      { engine: 'ssh', name: 'SSH Tunnel', transport: 'ssh' },
     ];
 
-    for (const eng of port443Engines) {
-      const isActive = this.activePrimary443 === eng.engine;
-      plan.port443Candidates.push({
+    for (const eng of dynamicEngines) {
+      const assignedPort = this.getRandomPort();
+      const tunnelId = `dyn-${eng.engine}-${iranServer.id}-${foreignServer.id}-${assignedPort}`;
+      
+      plan.dynamicPortTunnels.push({
         ...eng,
-        port: 443,
-        status: isActive ? 'active_primary' : 'standby',
-        isCurrentPrimary: isActive,
+        port: assignedPort,
+        status: 'active',
+        tunnelId,
         config: tunnelManager.generateDeployConfig(eng.engine, {
-          tunnelId: `p443-${eng.engine}-${iranServer.id}-${foreignServer.id}`,
-          listenPort: 443,
+          tunnelId,
+          listenPort: assignedPort,
           targetAddr: foreignServer.ip,
           targetPort: 443,
           iranServerIp: iranServer.ip,
