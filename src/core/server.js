@@ -20,6 +20,8 @@ const cron = require('node-cron');
 const config = require('../config/default');
 const { getDb } = require('../database');
 const { createLogger } = require('../utils/logger');
+const { errorHandler, notFoundHandler } = require('../utils/errors');
+const { setupSwagger } = require('../utils/swagger');
 
 // Routes
 const authRoutes = require('../api/routes/auth');
@@ -73,6 +75,9 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// ============ API DOCUMENTATION ============
+setupSwagger(app);
 
 // ============ API ROUTES ============
 app.use('/api/auth', authRoutes);
@@ -140,11 +145,12 @@ app.get('*', (req, res) => {
   }
 });
 
-// ============ ERROR HANDLER ============
-app.use((err, req, res, next) => {
-  log.error('Unhandled error', { error: err.message, stack: err.stack });
-  res.status(500).json({ error: 'Internal server error' });
-});
+// ============ ERROR HANDLERS ============
+// 404 handler for API routes
+app.use('/api/*', notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 // ============ CRON JOBS ============
 // Monitor tunnels every 30 minutes (with Autopilot)

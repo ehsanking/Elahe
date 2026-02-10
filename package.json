@@ -10,7 +10,11 @@
     "install-iran": "bash scripts/install-iran.sh",
     "install-foreign": "bash scripts/install-foreign.sh",
     "elahe": "bash scripts/elahe.sh",
-    "migrate": "node src/database/migrate.js"
+    "migrate": "node src/database/migrate.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
   },
   "author": "EHSANKiNG",
   "license": "MIT",
@@ -25,13 +29,19 @@
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "express-session": "^1.17.3",
+    "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
     "qrcode": "^1.5.3",
     "speakeasy": "^2.0.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0",
     "svg-captcha": "^1.4.0",
     "uuid": "^9.0.0",
     "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
