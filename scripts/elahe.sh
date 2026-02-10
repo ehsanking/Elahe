@@ -1166,16 +1166,19 @@ check_domain_accessibility() {
 # ══════════════════ INSTALLATION ══════════════════
 
 do_install() {
+  export LANG=C.UTF-8
+  export LC_ALL=C.UTF-8
+
   banner
   check_root
   detect_os
   get_pkg_manager
   
   # Ask server mode
-  echo -e "${WHITE}════════════ پیکربندی سرور ════════════${NC}"
+  echo -e "${WHITE}════════════ Server Configuration ════════════${NC}"
   echo ""
-  echo -e "  ${CYAN}1)${NC} سرور ایران (Edge/استتار)"
-  echo -e "  ${CYAN}2)${NC} سرور خارج (Upstream/DNS)"
+  echo -e "  ${CYAN}1)${NC} Iran server (Edge/Camouflage)"
+  echo -e "  ${CYAN}2)${NC} Foreign server (Upstream/DNS)"
   echo ""
   local mode_choice
   ask "Select server type" "1" mode_choice
@@ -1186,61 +1189,62 @@ do_install() {
     *) SERVER_MODE="iran" ;;
   esac
   
-  log_info "حالت انتخاب شده: ${GREEN}$SERVER_MODE${NC}"
+  log_info "Selected mode: ${GREEN}$SERVER_MODE${NC}"
   echo ""
   
   # Install packages
-  echo -e "${WHITE}════════════ نصب بسته‌ها ════════════${NC}"
+  echo -e "${WHITE}════════════ Installing Packages ════════════${NC}"
   install_all_packages "$SERVER_MODE"
   
   # Setup project
   echo ""
-  echo -e "${WHITE}════════════ راه‌اندازی پروژه ════════════${NC}"
+  echo -e "${WHITE}════════════ Project Setup ════════════${NC}"
   
   # Stop existing service if running (to avoid file locks)
   systemctl stop elahe 2>/dev/null || true
   
   setup_project_files || {
-    log_err "راه‌اندازی فایل‌های پروژه ناموفق بود. نصب لغو شد."
+    log_err "Project file setup failed. Installation aborted."
     echo ""
-    echo -e "${YELLOW}راهنمای عیب‌یابی:${NC}"
-    echo -e "  1. DNS سرور را بررسی کنید: ${CYAN}cat /etc/resolv.conf${NC}"
-    echo -e "  2. اتصال به GitHub را تست کنید: ${CYAN}curl -I https://github.com${NC}"
-    echo -e "  3. اگر GitHub فیلتر است، آرشیو را دستی دانلود کنید و با گزینه 2 نصب کنید."
-    echo -e "  4. برای تغییر DNS: ${CYAN}echo 'nameserver 8.8.8.8' > /etc/resolv.conf${NC}"
+    echo -e "${YELLOW}Troubleshooting:${NC}"
+    echo -e "  1. Check server DNS: ${CYAN}cat /etc/resolv.conf${NC}"
+    echo -e "  2. Test GitHub access: ${CYAN}curl -I https://github.com${NC}"
+    echo -e "  3. If GitHub is blocked, download the archive manually and install via option 2."
+    echo -e "  4. To change DNS: ${CYAN}echo 'nameserver 8.8.8.8' > /etc/resolv.conf${NC}"
     echo ""
     exit 1
   }
   
   cd "$INSTALL_DIR"
   
-  log_info "نصب وابستگی‌های Node.js..."
+  log_info "Installing Node.js dependencies..."
   npm install --production 2>&1 || npm install 2>&1 || {
-    log_warn "نصب npm ناموفق بود. تلاش با mirror جایگزین..."
-    ask "آدرس رجیستری npm (مثلاً https://registry.npmmirror.com)" "" npm_mirror
+    log_warn "npm install failed. Retrying with a custom mirror..."
+    ask "npm registry URL (e.g. https://registry.npmmirror.com)" "" npm_mirror
     if [ -n "$npm_mirror" ]; then
       npm config set registry "$npm_mirror"
     fi
     npm install --production
   }
-  log_ok "وابستگی‌ها نصب شد"
+  log_ok "Dependencies installed"
   
   # Ensure directories exist after project setup
   mkdir -p "$DATA_DIR" "$CERTS_DIR" "$LOGS_DIR"
 
   # Configuration
   echo ""
-  echo -e "${WHITE}════════════ پیکربندی ════════════${NC}"
+  echo -e "${WHITE}════════════ Configuration ════════════${NC}"
   
   local ADMIN_USER ADMIN_PASS SERVER_PORT CORE_ENGINE
   ask "Admin username" "admin" ADMIN_USER
   ask "Admin password (leave empty for auto-generate)" "" ADMIN_PASS
   if [ -z "$ADMIN_PASS" ]; then
     ADMIN_PASS=$(openssl rand -hex 8 2>/dev/null || head -c 16 /dev/urandom | xxd -p | head -c 16)
-    log_info "رمز عبور خودکار: ${GREEN}$ADMIN_PASS${NC}"
+    log_info "Auto-generated password: ${GREEN}$ADMIN_PASS${NC}"
   fi
   
-  ask "Server port" "3000" SERVER_PORT
+  SERVER_PORT="3000"
+  log_info "Panel internal port fixed to ${GREEN}${SERVER_PORT}${NC}; public panel access is on ${GREEN}443${NC}."
   ask "Core engine (xray/singbox)" "xray" CORE_ENGINE
   
   # Mode-specific config (defaults only - no color prompts)
@@ -1327,13 +1331,13 @@ ENVEOF
   fi
   
   # Initialize database
-  log_info "مقداردهی اولیه پایگاه داده..."
+  log_info "Initializing database..."
   cd "$INSTALL_DIR"
   node -e "require('./src/database/migrate').migrate()" 2>&1 || {
-    log_warn "مشکل در migration. تلاش مجدد..."
+    log_warn "Migration issue detected. Retrying..."
     node -e "require('./src/database/migrate').migrate()"
   }
-  log_ok "پایگاه داده آماده شد"
+  log_ok "Database initialized"
   
   # Configure Nginx reverse proxy (public 443)
   setup_nginx_proxy "$SERVER_PORT"
@@ -1381,18 +1385,18 @@ ENVEOF
   echo -e "${NC}"
   
   if [ "$PANEL_PROTO" = "http" ]; then
-    echo -e "${YELLOW}توجه: پنل در حالت HTTP اجرا می‌شود.${NC}"
-    echo -e "${YELLOW}برای فعال‌سازی HTTPS: 'elahe set-domain' را اجرا کنید.${NC}"
-    echo -e "${YELLOW}پس از تنظیم SSL: https://${MAIN_DOMAIN:-$SERVER_IP}:${PUBLIC_PORT}${NC}"
+    echo -e "${YELLOW}Notice: Panel is running in HTTP mode.${NC}"
+    echo -e "${YELLOW}To enable HTTPS, run: 'elahe set-domain'.${NC}"
+    echo -e "${YELLOW}After SSL setup: https://${MAIN_DOMAIN:-$SERVER_IP}:${PUBLIC_PORT}${NC}"
   fi
 }
 
 setup_nginx_proxy() {
   local app_port="$1"
-  log_info "پیکربندی Nginx..."
+  log_info "Configuring Nginx..."
 
   if [ ! -f "${CERTS_DIR}/fullchain.pem" ] || [ ! -f "${CERTS_DIR}/privkey.pem" ]; then
-    log_info "ساخت گواهی خودامضا برای Nginx..."
+    log_info "Generating self-signed certificate for Nginx..."
     openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
       -subj "/CN=localhost" \
       -keyout "${CERTS_DIR}/privkey.pem" \
@@ -1460,7 +1464,7 @@ EOF
 
   systemctl enable nginx 2>/dev/null
   systemctl restart nginx
-  log_ok "Nginx آماده شد"
+  log_ok "Nginx configured"
 }
 
 setup_systemd() {
@@ -1468,7 +1472,7 @@ setup_systemd() {
   local desc="Elahe Panel"
   [ "$mode" = "foreign" ] && desc="Elahe Panel (Foreign)"
   
-  log_info "ایجاد سرویس systemd..."
+  log_info "Creating systemd service..."
   cat > /etc/systemd/system/elahe.service << SVCEOF
 [Unit]
 Description=$desc
@@ -1492,7 +1496,7 @@ SVCEOF
   systemctl daemon-reload
   systemctl enable elahe 2>/dev/null
   systemctl start elahe
-  log_ok "سرویس ایجاد و اجرا شد"
+  log_ok "Service created and started"
 }
 
 setup_firewall() {
@@ -1500,7 +1504,7 @@ setup_firewall() {
   local port
   port=$(grep "^PORT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "3000")
   
-  log_info "پیکربندی فایروال..."
+  log_info "Configuring firewall..."
   
   if command -v ufw &>/dev/null; then
     ufw allow "$port/tcp" 2>/dev/null
@@ -1509,11 +1513,9 @@ setup_firewall() {
     ufw allow 8443/tcp 2>/dev/null
     ufw allow 8080/tcp 2>/dev/null
     
-    if [ "$mode" = "iran" ]; then
-      ufw allow 110/tcp 2>/dev/null
-      ufw allow 510/tcp 2>/dev/null
-      ufw allow 8388/tcp 2>/dev/null
-    fi
+    ufw allow 110/tcp 2>/dev/null
+    ufw allow 510/tcp 2>/dev/null
+    ufw allow 8388/tcp 2>/dev/null
     
     ufw allow 1414/udp 2>/dev/null
     ufw allow 53133/udp 2>/dev/null
@@ -1525,8 +1527,13 @@ setup_firewall() {
     firewall-cmd --permanent --add-port=443/tcp 2>/dev/null
     firewall-cmd --permanent --add-port=80/tcp 2>/dev/null
     firewall-cmd --permanent --add-port=8443/tcp 2>/dev/null
+    firewall-cmd --permanent --add-port=8080/tcp 2>/dev/null
+    firewall-cmd --permanent --add-port=110/tcp 2>/dev/null
+    firewall-cmd --permanent --add-port=510/tcp 2>/dev/null
+    firewall-cmd --permanent --add-port=8388/tcp 2>/dev/null
     firewall-cmd --permanent --add-port=1414/udp 2>/dev/null
     firewall-cmd --permanent --add-port=53133/udp 2>/dev/null
+    firewall-cmd --permanent --add-port=4433/udp 2>/dev/null
     firewall-cmd --reload 2>/dev/null
     log_ok "Firewalld rules added"
   else
@@ -1535,13 +1542,13 @@ setup_firewall() {
 }
 
 install_cli_command() {
-  log_info "نصب دستور 'elahe' در سیستم..."
+  log_info "Installing 'elahe' command..."
   cat > /usr/local/bin/elahe << 'CLIEOF'
 #!/bin/bash
 exec bash /opt/elahe/scripts/elahe.sh "$@"
 CLIEOF
   chmod +x /usr/local/bin/elahe
-  log_ok "دستور 'elahe' نصب شد. از هر جا قابل اجراست."
+  log_ok "'elahe' command installed and available globally."
 }
 
 # ══════════════════ UPDATE ══════════════════

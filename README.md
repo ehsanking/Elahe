@@ -145,7 +145,7 @@ bash <(curl -s https://raw.githubusercontent.com/ehsanking/Elahe/main/scripts/el
 
 ## مجوز / License
 
-MIT License - Copyright (c) 2024 EHSANKiNG
+GNU General Public License v3.0 (GPL-3.0) - Copyright (c) 2024 EHSANKiNG
 
 ---
 
