@@ -60,6 +60,15 @@ elahe restart          # ریستارت سرویس
 elahe uninstall        # حذف
 ```
 
+### زیرساخت CI/CD
+
+برای بررسی و تکمیل زیرساخت توسعه، پایپلاین GitHub Actions به‌روزرسانی شده است تا موارد زیر را پوشش دهد:
+
+- اجرای تست ماتریسی روی Node.js نسخه‌های 18، 20 و 22
+- اجرای `npm audit` با سطح حساسیت `high`
+- اجرای زمان‌بندی‌شده هفتگی برای پایش امنیت وابستگی‌ها
+- پشتیبانی از اجرای دستی (`workflow_dispatch`) و کنترل هم‌زمانی Jobها
+
 ### منابع GeoIP/GeoData
 
 این پروژه از [Iran-v2ray-rules](https://github.com/chocolate4u/Iran-v2ray-rules) (توسعه‌دهنده: chocolate4u) برای قوانین مسیریابی GeoIP/GeoSite استفاده می‌کند. این مجموعه قوانین شامل:
