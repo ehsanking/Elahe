@@ -14,6 +14,8 @@ NC='\033[0m'
 INSTALL_DIR="/opt/elahe"
 GIT_REPO="https://github.com/ehsanking/Elahe.git"
 GITHUB_API="https://api.github.com/repos/ehsanking/Elahe"
+CLEAN_INSTALL="${CLEAN_INSTALL:-true}"
+PRESERVE_ENV="${PRESERVE_ENV:-false}"
 
 echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════════╗"
@@ -47,18 +49,11 @@ echo -e "${YELLOW}[4/8] Setting up project...${NC}"
 systemctl stop elahe 2>/dev/null || true
 
 setup_project() {
-  # Backup existing data if present
-  local backup_dir=""
-  if [ -d "$INSTALL_DIR" ] && [ "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
-    echo -e "${YELLOW}[INFO] Existing installation found at $INSTALL_DIR${NC}"
-    backup_dir="/tmp/elahe-backup-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$backup_dir"
-    [ -d "$INSTALL_DIR/data" ] && cp -a "$INSTALL_DIR/data" "$backup_dir/data" 2>/dev/null || true
-    [ -f "$INSTALL_DIR/.env" ] && cp -a "$INSTALL_DIR/.env" "$backup_dir/.env" 2>/dev/null || true
-    [ -d "$INSTALL_DIR/certs" ] && cp -a "$INSTALL_DIR/certs" "$backup_dir/certs" 2>/dev/null || true
-    [ -d "$INSTALL_DIR/logs" ] && cp -a "$INSTALL_DIR/logs" "$backup_dir/logs" 2>/dev/null || true
-    echo -e "${GREEN}[OK] Data backed up to $backup_dir${NC}"
+  if [ "$CLEAN_INSTALL" = "true" ] && [ -d "$INSTALL_DIR" ]; then
+    echo -e "${YELLOW}[INFO] CLEAN_INSTALL=true -> removing previous installation state${NC}"
+    rm -rf "${INSTALL_DIR:?}"
   fi
+
 
   # --- Try local dev copy first ---
   if [ -d "/home/user/webapp" ] && [ -f "/home/user/webapp/package.json" ]; then
@@ -71,7 +66,6 @@ setup_project() {
     mkdir -p "$INSTALL_DIR"
     cp -a /home/user/webapp/* "$INSTALL_DIR/" 2>/dev/null || true
     cp -a /home/user/webapp/.gitignore "$INSTALL_DIR/" 2>/dev/null || true
-    _restore_backup "$backup_dir"
     return 0
   fi
 
@@ -106,7 +100,6 @@ setup_project() {
         cp -a "${extracted}"/* "$INSTALL_DIR/" 2>/dev/null || true
         cp -a "${extracted}"/.* "$INSTALL_DIR/" 2>/dev/null || true
         rm -rf "$tmp_dir"
-        _restore_backup "$backup_dir"
         echo -e "${GREEN}[OK] Installed from release${NC}"
         return 0
       fi
@@ -122,7 +115,6 @@ setup_project() {
     cd "$INSTALL_DIR"
     git fetch origin 2>/dev/null || true
     git reset --hard origin/main 2>/dev/null || git pull 2>/dev/null || true
-    _restore_backup "$backup_dir"
     return 0
   fi
 
@@ -135,25 +127,10 @@ setup_project() {
   git clone "$GIT_REPO" "$INSTALL_DIR" 2>/dev/null || {
     echo -e "${RED}[ERROR] Git clone failed. Please check network and try again.${NC}"
     mkdir -p "$INSTALL_DIR"
-    _restore_backup "$backup_dir"
     exit 1
   }
 
-  _restore_backup "$backup_dir"
   return 0
-}
-
-_restore_backup() {
-  local bdir="$1"
-  if [ -n "$bdir" ] && [ -d "$bdir" ]; then
-    echo -e "${BLUE}[INFO] Restoring backed up data...${NC}"
-    [ -d "${bdir}/data" ] && cp -a "${bdir}/data" "$INSTALL_DIR/" 2>/dev/null || true
-    [ -f "${bdir}/.env" ] && cp -a "${bdir}/.env" "$INSTALL_DIR/.env" 2>/dev/null || true
-    [ -d "${bdir}/certs" ] && cp -a "${bdir}/certs" "$INSTALL_DIR/" 2>/dev/null || true
-    [ -d "${bdir}/logs" ] && cp -a "${bdir}/logs" "$INSTALL_DIR/" 2>/dev/null || true
-    rm -rf "$bdir"
-    echo -e "${GREEN}[OK] Data restored${NC}"
-  fi
 }
 
 setup_project
@@ -164,7 +141,7 @@ echo -e "${YELLOW}[5/8] Installing dependencies...${NC}"
 npm install --production
 
 echo -e "${YELLOW}[6/8] Configuring for foreign mode...${NC}"
-if [ ! -f "$INSTALL_DIR/.env" ]; then
+if [ "$PRESERVE_ENV" != "true" ] || [ ! -f "$INSTALL_DIR/.env" ]; then
   cat > "$INSTALL_DIR/.env" << EOF
 ELAHE_MODE=foreign
 PORT=3000
@@ -182,21 +159,23 @@ SSL_KEY=$INSTALL_DIR/certs/privkey.pem
 SSL_TERMINATE_PROXY=true
 LOG_LEVEL=info
 
-EN_TITLE=Linux Academy
+EN_TITLE=Global Tunnel Hub
+EN_SUBTITLE=Multi tunnel control center for foreign server
 EN_PRIMARY=#0f172a
 EN_SECONDARY=#3b82f6
 EN_ACCENT=#10b981
 EOF
-  echo -e "${GREEN}[OK] New configuration created${NC}"
+  echo -e "${GREEN}[OK] Foreign .env regenerated${NC}"
 else
-  # Ensure mode is set to foreign
-  sed -i "s/^ELAHE_MODE=.*/ELAHE_MODE=foreign/" "$INSTALL_DIR/.env" 2>/dev/null || true
+  sed -i "/^ELAHE_MODE=/d" "$INSTALL_DIR/.env" 2>/dev/null || true
+  echo "ELAHE_MODE=foreign" >> "$INSTALL_DIR/.env"
   grep -q "^SSL_TERMINATE_PROXY=" "$INSTALL_DIR/.env" || echo "SSL_TERMINATE_PROXY=true" >> "$INSTALL_DIR/.env"
-  echo -e "${GREEN}[OK] Using existing configuration (mode set to foreign)${NC}"
+  echo -e "${GREEN}[OK] Existing .env preserved and forced to foreign mode${NC}"
 fi
 
 mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/certs" "$INSTALL_DIR/logs"
 node -e "require('./src/database/migrate').migrate()"
+node -e "const r=require('./src/database/bootstrapForeign').bootstrapForeignMultiTunnel(); console.log('[BOOTSTRAP]', JSON.stringify(r));"
 
 
 release_port_conflicts() {
