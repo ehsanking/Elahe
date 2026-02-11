@@ -103,29 +103,35 @@ router.get('/capabilities', adminAuth, (req, res) => {
   res.json({
     mode,
     capabilities: {
+      // User management
       createUsers: mode === 'iran',
       manageUsers: mode === 'iran',
-      viewUsers: true,
+      viewUsers: mode === 'iran',
+
+      // Servers / tunnels
       manageServers: true,
       manageTunnels: true,
-      manageSettings: true,
+
+      // Settings & advanced features
+      manageSettings: mode === 'iran',
+      // Domain and certificate management happens only in foreign mode
       manageDomains: mode === 'foreign',
       importExport: mode === 'iran',
       viewSubscriptions: mode === 'iran',
       generateConfigs: mode === 'iran',
-      autopilot: true,
-      tunnelEngines: true,
+      autopilot: mode === 'iran',
+      tunnelEngines: mode === 'iran',
       tunnelEndpoint: mode === 'foreign',
-      coreManagement: true,
-      geoRouting: true,
-      warp: true,
-      contentBlocking: true,
-      sslManagement: true,
-      apiKeys: true,
+      coreManagement: mode === 'iran',
+      geoRouting: mode === 'iran',
+      warp: mode === 'iran',
+      contentBlocking: mode === 'iran',
+      sslManagement: mode === 'iran',
+      apiKeys: mode === 'iran',
       onlineUsers: true,
       customPorts: mode === 'iran',
       twoFactor: true,
-      mobileGameCamouflage: true,
+      mobileGameCamouflage: mode === 'iran',
     },
   });
 });

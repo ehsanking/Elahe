@@ -1392,6 +1392,56 @@ ENVEOF
     node -e "require('./src/database/migrate').migrate()"
   }
   log_ok "Database initialized"
+
+  # Sync admin credentials in database with .env / config
+  log_info "Syncing admin credentials with configuration..."
+  node - << 'NODE'
+const path = require('path');
+const bcrypt = require('bcryptjs');
+const Database = require('better-sqlite3');
+const config = require('./src/config/default');
+
+// Resolve database path from config (which already reads .env)
+const dbPath = config.database.path || path.join(__dirname, 'data', 'elahe.db');
+const db = new Database(dbPath);
+
+const username = config.admin.username;
+const password = config.admin.password;
+
+if (!username || !password) {
+  console.log('[AdminSync] ADMIN_USER or ADMIN_PASS missing, skipping sync');
+  db.close();
+  process.exit(0);
+}
+
+const hash = bcrypt.hashSync(password, 10);
+
+// Prefer updating an admin with the desired username
+const existingSame = db.prepare('SELECT id FROM admins WHERE username = ?').get(username);
+if (existingSame) {
+  db.prepare('UPDATE admins SET password = ?, is_sudo = 1, status = ? WHERE id = ?')
+    .run(hash, 'active', existingSame.id);
+} else {
+  // Otherwise, reuse the first sudo admin if exists
+  const sudoAdmin = db.prepare('SELECT id FROM admins WHERE is_sudo = 1 ORDER BY id ASC').get();
+  if (sudoAdmin) {
+    db.prepare('UPDATE admins SET username = ?, password = ?, is_sudo = 1, status = ? WHERE id = ?')
+      .run(username, hash, 'active', sudoAdmin.id);
+  } else {
+    // Or create a new sudo admin
+    db.prepare('INSERT INTO admins (username, password, is_sudo, status) VALUES (?, ?, 1, ?)')
+      .run(username, hash, 'active');
+  }
+}
+
+// If a legacy "admin" user exists and username changed, disable it
+if (username !== 'admin') {
+  db.prepare('UPDATE admins SET status = ? WHERE username = ?').run('disabled', 'admin');
+}
+
+db.close();
+console.log('[AdminSync] Admin credentials synchronized');
+NODE
   
   # Configure Nginx reverse proxy (public 443)
   setup_nginx_proxy "$SERVER_PORT"
