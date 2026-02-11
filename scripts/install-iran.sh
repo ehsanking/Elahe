@@ -243,7 +243,11 @@ issue_ssl_certificate() {
 
 # Configure Nginx reverse proxy
 echo -e "${YELLOW}[7/8] Configuring Nginx...${NC}"
-APP_PORT=3000
+APP_PORT=$(grep "^PORT=" "$INSTALL_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d '[:space:]')
+if ! [[ "$APP_PORT" =~ ^[0-9]+$ ]] || [ "$APP_PORT" -lt 1 ] || [ "$APP_PORT" -gt 65535 ]; then
+  echo -e "${YELLOW}[WARN] Invalid PORT in .env, falling back to 3000 for Nginx upstream.${NC}"
+  APP_PORT=3000
+fi
 release_port_conflicts
 
 DOMAIN_NAME=$(grep "^DOMAIN=" "$INSTALL_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2-)
@@ -318,6 +322,7 @@ server {
 EOF
 fi
 
+nginx -t
 systemctl enable nginx
 systemctl restart nginx
 

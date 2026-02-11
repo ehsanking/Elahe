@@ -1516,6 +1516,7 @@ server {
 EOF
   fi
 
+  nginx -t
   systemctl enable nginx 2>/dev/null
   systemctl restart nginx
   log_ok "Nginx configured"
