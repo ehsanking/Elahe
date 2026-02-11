@@ -191,10 +191,12 @@ DB_PATH=$INSTALL_DIR/data/elahe.db
 SSL_ENABLED=auto
 SSL_CERT=$INSTALL_DIR/certs/fullchain.pem
 SSL_KEY=$INSTALL_DIR/certs/privkey.pem
+SSL_TERMINATE_PROXY=true
 LOG_LEVEL=info
 EOF
   echo -e "${GREEN}[OK] New configuration created${NC}"
 else
+  grep -q "^SSL_TERMINATE_PROXY=" "$INSTALL_DIR/.env" || echo "SSL_TERMINATE_PROXY=true" >> "$INSTALL_DIR/.env"
   echo -e "${GREEN}[OK] Using existing configuration${NC}"
 fi
 

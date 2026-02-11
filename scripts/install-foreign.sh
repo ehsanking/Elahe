@@ -178,6 +178,7 @@ DB_PATH=$INSTALL_DIR/data/elahe.db
 SSL_ENABLED=auto
 SSL_CERT=$INSTALL_DIR/certs/fullchain.pem
 SSL_KEY=$INSTALL_DIR/certs/privkey.pem
+SSL_TERMINATE_PROXY=true
 LOG_LEVEL=info
 
 EN_TITLE=Linux Academy
@@ -189,6 +190,7 @@ EOF
 else
   # Ensure mode is set to foreign
   sed -i "s/^ELAHE_MODE=.*/ELAHE_MODE=foreign/" "$INSTALL_DIR/.env" 2>/dev/null || true
+  grep -q "^SSL_TERMINATE_PROXY=" "$INSTALL_DIR/.env" || echo "SSL_TERMINATE_PROXY=true" >> "$INSTALL_DIR/.env"
   echo -e "${GREEN}[OK] Using existing configuration (mode set to foreign)${NC}"
 fi
 

@@ -73,6 +73,9 @@ EN_ACCENT=${enAccent || '#10b981'}
 # Database
 DB_PATH=./data/elahe.db
 
+# SSL
+SSL_TERMINATE_PROXY=true
+
 # Logging
 LOG_LEVEL=info
 `;
