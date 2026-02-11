@@ -43,11 +43,19 @@ async function loadCapabilities() {
   if (!data) return;
   panelMode = data.mode;
   capabilities = data.capabilities;
-  document.getElementById('mode-badge').innerHTML = `\u062D\u0627\u0644\u062A: <strong style="color:${panelMode === 'iran' ? '#f59e0b' : '#3b82f6'}">${panelMode === 'iran' ? '\u0627\u06CC\u0631\u0627\u0646' : '\u062E\u0627\u0631\u062C'}</strong>`;
+  document.getElementById('mode-badge').innerHTML = `حالت: <strong style="color:${panelMode === 'iran' ? '#f59e0b' : '#3b82f6'}">${panelMode === 'iran' ? 'ایران' : 'خارج'}</strong>`;
+
+  const hide = (id) => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+
+  if (panelMode === 'foreign') {
+    ['nav-users', 'nav-servers', 'nav-autopilot', 'nav-georouting', 'nav-core', 'nav-warp', 'nav-contentblock', 'nav-subdomains', 'nav-domains', 'nav-external-panels', 'nav-importexport', 'nav-apikeys', 'nav-settings'].forEach(hide);
+  } else {
+    ['nav-georouting', 'nav-core', 'nav-warp', 'nav-contentblock', 'nav-subdomains', 'nav-domains', 'nav-external-panels', 'nav-apikeys'].forEach(hide);
+  }
+
   if (!capabilities.createUsers) { const el = document.getElementById('user-actions-iran'); if (el) el.style.display = 'none'; }
-  if (!capabilities.importExport) { const el = document.getElementById('nav-importexport'); if (el) el.style.display = 'none'; }
-  if (!capabilities.subdomainManagement) { const el = document.getElementById('nav-subdomains'); if (el) el.style.display = 'none'; }
-  if (!capabilities.manageDomains) { const el = document.getElementById('nav-domains'); if (el) el.style.display = 'none'; }
+  if (!capabilities.importExport) hide('nav-importexport');
+  if (!capabilities.manageDomains) hide('nav-domains');
   if (capabilities.customPorts) { const el = document.getElementById('custom-port-card'); if (el) el.style.display = 'block'; }
 }
 
@@ -60,6 +68,8 @@ const PAGE_TITLES = {
 };
 
 function navigate(page) {
+  if (panelMode === 'foreign' && !['dashboard', 'tunnels'].includes(page)) page = 'dashboard';
+  if (panelMode === 'iran' && !['dashboard', 'users', 'servers', 'tunnels', 'importexport', 'settings'].includes(page)) page = 'dashboard';
   currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
   const pageEl = document.getElementById(`page-${page}`);
