@@ -11,7 +11,7 @@ const CaptchaService = require('../../services/captcha');
 // Get captcha
 router.get('/captcha', (req, res) => {
   const captcha = CaptchaService.generate();
-  res.json({ id: captcha.id, svg: captcha.svg, type: captcha.type || 'svg' });
+  res.json({ id: captcha.id, svg: captcha.svg, type: captcha.type || 'svg', question: captcha.question || null });
 });
 
 // Admin login

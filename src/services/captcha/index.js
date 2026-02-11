@@ -9,28 +9,65 @@ const { getDb } = require('../../database');
 const config = require('../../config/default');
 
 class CaptchaService {
+  static normalizeAnswer(rawAnswer) {
+    const map = {
+      '۰': '0', '٠': '0',
+      '۱': '1', '١': '1',
+      '۲': '2', '٢': '2',
+      '۳': '3', '٣': '3',
+      '۴': '4', '٤': '4',
+      '۵': '5', '٥': '5',
+      '۶': '6', '٦': '6',
+      '۷': '7', '٧': '7',
+      '۸': '8', '٨': '8',
+      '۹': '9', '٩': '9',
+    };
+
+    return String(rawAnswer)
+      .trim()
+      .replace(/[۰-۹٠-٩]/g, (digit) => map[digit] || digit)
+      .replace(/[^0-9-]/g, '');
+  }
+
+  static getDifficultyProfile() {
+    const difficulty = (config.captcha.difficulty || 'normal').toLowerCase();
+
+    if (difficulty === 'hard') {
+      return { ops: ['+', '-', '*'], noiseMultiplier: 1.3 };
+    }
+
+    if (difficulty === 'easy') {
+      return { ops: ['+', '-'], noiseMultiplier: 0.5 };
+    }
+
+    return { ops: ['+', '-', '*'], noiseMultiplier: 1 };
+  }
+
   /**
    * Generate a new math-based captcha
    */
   static generate() {
-    const ops = ['+', '-', '*'];
+    const profile = this.getDifficultyProfile();
+    const ops = profile.ops;
     const op = ops[Math.floor(Math.random() * ops.length)];
     let a, b, answer;
+    const maxAddSub = Math.max(10, parseInt(config.captcha.maxAddSub, 10) || 20);
+    const maxMultiply = Math.max(3, parseInt(config.captcha.maxMultiply, 10) || 6);
     
     switch (op) {
       case '+':
-        a = Math.floor(Math.random() * 50) + 1;
-        b = Math.floor(Math.random() * 50) + 1;
+        a = Math.floor(Math.random() * maxAddSub) + 1;
+        b = Math.floor(Math.random() * maxAddSub) + 1;
         answer = a + b;
         break;
       case '-':
-        a = Math.floor(Math.random() * 50) + 10;
+        a = Math.floor(Math.random() * maxAddSub) + 10;
         b = Math.floor(Math.random() * a);
         answer = a - b;
         break;
       case '*':
-        a = Math.floor(Math.random() * 12) + 1;
-        b = Math.floor(Math.random() * 10) + 1;
+        a = Math.floor(Math.random() * maxMultiply) + 1;
+        b = Math.floor(Math.random() * maxMultiply) + 1;
         answer = a * b;
         break;
     }
@@ -58,7 +95,8 @@ class CaptchaService {
 
     // Generate noise lines
     let noiseLines = '';
-    const noiseCount = config.captcha.noise || 3;
+    const baseNoise = config.captcha.noise || 3;
+    const noiseCount = Math.max(1, Math.round(baseNoise * profile.noiseMultiplier));
     for (let i = 0; i < noiseCount; i++) {
       const x1 = Math.random() * 200;
       const y1 = Math.random() * 60;
@@ -70,7 +108,8 @@ class CaptchaService {
 
     // Generate noise dots
     let noiseDots = '';
-    for (let i = 0; i < 15; i++) {
+    const dotsCount = Math.max(6, Math.round(15 * profile.noiseMultiplier));
+    for (let i = 0; i < dotsCount; i++) {
       const cx = Math.random() * 200;
       const cy = Math.random() * 60;
       const r = Math.random() * 2 + 0.5;
@@ -99,6 +138,7 @@ class CaptchaService {
       id,
       svg,
       type: 'math',
+      question,
     };
   }
 
@@ -118,7 +158,7 @@ class CaptchaService {
     // Delete used captcha
     db.prepare(`DELETE FROM captcha_sessions WHERE id = ?`).run(id);
 
-    return session.answer === String(answer).trim();
+    return session.answer === this.normalizeAnswer(answer);
   }
 }
 
