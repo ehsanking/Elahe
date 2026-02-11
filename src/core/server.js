@@ -203,17 +203,7 @@ app.use('/api/*', notFoundHandler);
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// ============ CRON JOBS ============
-// Monitor tunnels every 30 minutes (with Autopilot)
-const TunnelService = require('../services/tunnel');
-cron.schedule('*/30 * * * *', async () => {
-  try {
-    await TunnelService.runMonitoringCycle();
-  } catch (err) {
-    log.error('Monitoring cycle failed', { error: err.message });
-  }
-});
-
+// ============ CRON JOBS (no automatic tunnel autopilot) ============
 // Cleanup expired sessions hourly
 cron.schedule('0 * * * *', () => {
   try {
