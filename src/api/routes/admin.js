@@ -109,8 +109,8 @@ router.get('/capabilities', adminAuth, (req, res) => {
       viewUsers: mode === 'iran',
 
       // Servers / tunnels
-      manageServers: true,
-      manageTunnels: true,
+      manageServers: mode === 'iran',
+      manageTunnels: mode === 'iran',
 
       // Settings & advanced features
       manageSettings: mode === 'iran',
@@ -137,7 +137,7 @@ router.get('/capabilities', adminAuth, (req, res) => {
 });
 
 // ============ USERS ============
-router.get('/users', adminAuth, (req, res) => {
+router.get('/users', adminAuth, iranOnly, (req, res) => {
   const { page, limit, status, plan, search } = req.query;
   const result = UserService.listUsers({ page: parseInt(page) || 1, limit: parseInt(limit) || 20, status, plan, search });
   res.json(result);
@@ -155,7 +155,7 @@ router.post('/users/auto-create', adminAuth, iranOnly, async (req, res) => {
   res.json({ success: true, results });
 });
 
-router.get('/users/:id', adminAuth, (req, res) => {
+router.get('/users/:id', adminAuth, iranOnly, (req, res) => {
   const user = UserService.getById(req.params.id);
   if (!user) return res.status(404).json({ error: '\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F' });
   res.json(user);
@@ -181,7 +181,7 @@ router.post('/users/:id/revoke-subscription', adminAuth, iranOnly, (req, res) =>
 });
 
 // ============ ONLINE USERS ============
-router.get('/users/online/list', adminAuth, (req, res) => {
+router.get('/users/online/list', adminAuth, iranOnly, (req, res) => {
   try {
     const db = getDb();
     const onlineUsers = db.prepare(`
@@ -202,7 +202,7 @@ router.get('/servers', adminAuth, (req, res) => {
   res.json(ServerService.listServers(type));
 });
 
-router.post('/servers', adminAuth, (req, res) => {
+router.post('/servers', adminAuth, iranOnly, (req, res) => {
   const result = ServerService.addServer(req.body);
   if (result.success) return res.status(201).json(result);
   res.status(400).json(result);
@@ -214,18 +214,18 @@ router.get('/servers/:id', adminAuth, (req, res) => {
   res.json(server);
 });
 
-router.put('/servers/:id', adminAuth, (req, res) => {
+router.put('/servers/:id', adminAuth, iranOnly, (req, res) => {
   const result = ServerService.updateServer(req.params.id, req.body);
   if (result.success) return res.json(result);
   res.status(400).json(result);
 });
 
-router.delete('/servers/:id', adminAuth, (req, res) => {
+router.delete('/servers/:id', adminAuth, iranOnly, (req, res) => {
   ServerService.removeServer(req.params.id);
   res.json({ success: true });
 });
 
-router.post('/servers/:id/regenerate-token', adminAuth, (req, res) => {
+router.post('/servers/:id/regenerate-token', adminAuth, iranOnly, (req, res) => {
   res.json(ServerService.regenerateToken(req.params.id));
 });
 
@@ -235,18 +235,18 @@ router.get('/tunnels', adminAuth, (req, res) => {
   res.json(TunnelService.listTunnels(serverId));
 });
 
-router.post('/tunnels', adminAuth, (req, res) => {
+router.post('/tunnels', adminAuth, iranOnly, (req, res) => {
   const result = TunnelService.addTunnel(req.body);
   if (result.success) return res.status(201).json(result);
   res.status(400).json(result);
 });
 
-router.delete('/tunnels/:id', adminAuth, (req, res) => {
+router.delete('/tunnels/:id', adminAuth, iranOnly, (req, res) => {
   TunnelService.deleteTunnel(req.params.id);
   res.json({ success: true });
 });
 
-router.post('/tunnels/monitor', adminAuth, async (req, res) => {
+router.post('/tunnels/monitor', adminAuth, iranOnly, async (req, res) => {
   const result = await TunnelService.runMonitoringCycle();
   res.json(result);
 });
@@ -256,17 +256,17 @@ router.get('/tunnels/:id/history', adminAuth, (req, res) => {
 });
 
 // ============ AUTOPILOT ============
-router.get('/autopilot/status', adminAuth, (req, res) => {
+router.get('/autopilot/status', adminAuth, iranOnly, (req, res) => {
   res.json({ success: true, ...TunnelService.getAutopilotStatus() });
 });
 
-router.post('/autopilot/monitor', adminAuth, async (req, res) => {
+router.post('/autopilot/monitor', adminAuth, iranOnly, async (req, res) => {
   const result = await TunnelService.runAutopilotCycle();
   res.json({ success: true, ...result });
 });
 
 // DEPRECATED: Manual tunnel selection removed - all tunnels stay active on random ports
-router.post('/autopilot/set-primary', adminAuth, (req, res) => {
+router.post('/autopilot/set-primary', adminAuth, iranOnly, (req, res) => {
   res.status(410).json({ 
     success: false, 
     error: 'Manual tunnel selection has been removed. All tunnels are now kept active on random ports.',
@@ -274,17 +274,17 @@ router.post('/autopilot/set-primary', adminAuth, (req, res) => {
   });
 });
 
-router.post('/autopilot/toggle', adminAuth, (req, res) => {
+router.post('/autopilot/toggle', adminAuth, iranOnly, (req, res) => {
   const { enabled } = req.body;
   const result = TunnelService.setAutopilotEnabled(enabled !== false);
   res.json(result);
 });
 
-router.get('/autopilot/port-rules', adminAuth, (req, res) => {
+router.get('/autopilot/port-rules', adminAuth, iranOnly, (req, res) => {
   res.json({ success: true, rules: TunnelService.getPortRules() });
 });
 
-router.get('/autopilot/deployment-plan/:iranServerId/:foreignServerId', adminAuth, (req, res) => {
+router.get('/autopilot/deployment-plan/:iranServerId/:foreignServerId', adminAuth, iranOnly, (req, res) => {
   const db = getDb();
   const iranServer = db.prepare('SELECT * FROM servers WHERE id = ?').get(req.params.iranServerId);
   const foreignServer = db.prepare('SELECT * FROM servers WHERE id = ?').get(req.params.foreignServerId);
@@ -294,37 +294,37 @@ router.get('/autopilot/deployment-plan/:iranServerId/:foreignServerId', adminAut
 });
 
 // ============ TUNNEL ENGINES ============
-router.get('/tunnel-engines', adminAuth, (req, res) => {
+router.get('/tunnel-engines', adminAuth, iranOnly, (req, res) => {
   res.json({ success: true, engines: tunnelManager.getEngines(), stats: tunnelManager.getStats() });
 });
 
-router.post('/tunnel-engines/create', adminAuth, async (req, res) => {
+router.post('/tunnel-engines/create', adminAuth, iranOnly, async (req, res) => {
   try { const result = await tunnelManager.createTunnel(req.body); res.json(result); }
   catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-router.post('/tunnel-engines/auto-setup', adminAuth, async (req, res) => {
+router.post('/tunnel-engines/auto-setup', adminAuth, iranOnly, async (req, res) => {
   const { iranServerId, foreignServerId } = req.body;
   if (!iranServerId || !foreignServerId) return res.status(400).json({ error: 'iranServerId and foreignServerId required' });
   try { const result = await tunnelManager.autoSetup(iranServerId, foreignServerId); res.json(result); }
   catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-router.delete('/tunnel-engines/:tunnelId', adminAuth, async (req, res) => {
+router.delete('/tunnel-engines/:tunnelId', adminAuth, iranOnly, async (req, res) => {
   try { const result = await tunnelManager.stopTunnel(req.params.tunnelId); res.json(result); }
   catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-router.get('/tunnel-engines/status', adminAuth, (req, res) => {
+router.get('/tunnel-engines/status', adminAuth, iranOnly, (req, res) => {
   res.json({ success: true, tunnels: tunnelManager.getAllStatus() });
 });
 
-router.get('/tunnel-engines/health', adminAuth, async (req, res) => {
+router.get('/tunnel-engines/health', adminAuth, iranOnly, async (req, res) => {
   try { const results = await tunnelManager.healthCheckAll(); res.json({ success: true, results }); }
   catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-router.post('/tunnel-engines/deploy-config', adminAuth, (req, res) => {
+router.post('/tunnel-engines/deploy-config', adminAuth, iranOnly, (req, res) => {
   const { engine, ...options } = req.body;
   const conf = tunnelManager.generateDeployConfig(engine, options);
   if (conf.error) return res.status(400).json(conf);

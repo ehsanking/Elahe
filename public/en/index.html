@@ -3,425 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Cloud Infrastructure Academy - Enterprise Linux training, DevOps labs, and cloud certification prep.">
-  <title id="site-title">Cloud Infrastructure Academy - Enterprise Linux & DevOps Training</title>
+  <title id="site-title">Elahe Foreign Panel Status</title>
   <link rel="stylesheet" href="/shared/css/common.css">
   <link rel="stylesheet" href="/css/en-style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { background:#f8fafc; }
+    .status-wrap { max-width: 980px; margin: 0 auto; padding: 32px 16px; }
+    .status-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
+    .card h3 { margin-bottom: 8px; }
+    .small { font-size: 12px; color:#64748b; }
+    code { background:#eef2ff; padding:2px 6px; border-radius:6px; }
+    ul { margin:0; padding-left:16px; }
+  </style>
 </head>
 <body>
-  <!-- Header -->
-  <header class="header" id="header">
-    <div class="container">
-      <nav class="nav">
-        <div class="nav-brand">
-          <div class="logo">
-            <svg width="40" height="40" viewBox="0 0 40 40">
-              <defs>
-                <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#0ea5e9"/>
-                  <stop offset="50%" style="stop-color:#6366f1"/>
-                  <stop offset="100%" style="stop-color:#8b5cf6"/>
-                </linearGradient>
-              </defs>
-              <rect rx="10" width="40" height="40" fill="url(#lg)" opacity="0.1"/>
-              <path d="M12 20 C12 14, 20 10, 28 14 C34 17, 34 25, 28 28 C22 30, 14 28, 12 20Z" fill="url(#lg)" opacity="0.9"/>
-              <circle cx="20" cy="20" r="5" fill="white"/>
-              <circle cx="28" cy="12" r="3" fill="#0ea5e9"/>
-            </svg>
-          </div>
-          <span class="brand-name" id="brand-name">Cloud Infra Academy</span>
-        </div>
-        <div class="nav-links" id="nav-links">
-          <a href="#home" class="nav-link active">Home</a>
-          <a href="#features" class="nav-link">Solutions</a>
-          <a href="#solutions" class="nav-link">Learning Paths</a>
-          <a href="#infrastructure" class="nav-link">Infrastructure</a>
-          <a href="#pricing" class="nav-link">Enterprise</a>
-          <a href="#docs" class="nav-link">Resources</a>
-          <a href="#about" class="nav-link">About</a>
-        </div>
-        <div class="nav-actions">
-          <button class="btn btn-outline btn-sm" onclick="showLoginModal()">Server Login</button>
-          <button class="btn btn-primary btn-sm" onclick="showRegisterModal()">Membership</button>
-          <button class="mobile-menu-btn" onclick="toggleMenu()">&#9776;</button>
-        </div>
-      </nav>
-    </div>
-  </header>
+  <main class="status-wrap">
+    <h1 style="margin-bottom:8px">Foreign Server Panel</h1>
+    <p class="small" style="margin-bottom:20px">This panel only exposes Iran link key, server resource usage and tunnel connection status.</p>
 
-  <!-- Hero -->
-  <section class="hero" id="home">
-    <div class="container">
-      <div class="hero-content">
-        <div class="hero-tag">Enterprise Infrastructure Training</div>
-        <h1>Master Cloud Infrastructure<br>& DevOps at Scale</h1>
-        <p class="hero-desc">Cloud Infrastructure Academy provides enterprise-grade training in Linux systems, cloud architecture, and DevOps practices. Trusted by engineering teams worldwide for hands-on labs and certification preparation.</p>
-        <div class="hero-actions">
-          <button class="btn btn-primary btn-lg" onclick="showRegisterModal()">Schedule Demo</button>
-          <button class="btn btn-outline btn-lg" onclick="scrollTo('#docs')">View Resources</button>
-        </div>
-        <div class="hero-stats">
-          <div class="stat"><span class="stat-number">500+</span><span class="stat-label">Enterprise Clients</span></div>
-          <div class="stat"><span class="stat-number">99.9%</span><span class="stat-label">Uptime SLA</span></div>
-          <div class="stat"><span class="stat-number">50K+</span><span class="stat-label">Engineers Trained</span></div>
-          <div class="stat"><span class="stat-number">24/7</span><span class="stat-label">Expert Support</span></div>
-        </div>
-        <div class="hero-logos">
-          <span class="hero-logos-label">Trusted by leading technology teams:</span>
-          <div class="logo-row">
-            <span class="fake-logo">CloudMatrix</span>
-            <span class="fake-logo">DataSphere</span>
-            <span class="fake-logo">NetCore</span>
-            <span class="fake-logo">SysOps Pro</span>
-            <span class="fake-logo">DevStack</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features -->
-  <section class="section" id="features">
-    <div class="container">
-      <h2 class="section-title">Enterprise Training Platform</h2>
-      <p class="section-desc">Production-grade learning environments for engineering teams</p>
-      <div class="grid grid-3 gap-3 mt-4">
-        <div class="card feature-card">
-          <div class="feature-icon">&#128187;</div>
-          <h3>Live Sandboxes</h3>
-          <p>Real cloud infrastructure provisioned on-demand. Practice on live AWS, Azure, and GCP environments without risk.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="feature-icon">&#127891;</div>
-          <h3>Certification Ready</h3>
-          <p>Official curriculum for AWS, Azure, GCP, CKA, RHCSA, and LFCS certifications with practice exams.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="feature-icon">&#128736;</div>
-          <h3>Production Scenarios</h3>
-          <p>Incident response simulations, chaos engineering labs, and scalability challenges at enterprise scale.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="feature-icon">&#128218;</div>
-          <h3>Expert Mentorship</h3>
-          <p>Learn from former Google, AWS, and Azure engineers with 15+ years of infrastructure experience.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="feature-icon">&#9889;</div>
-          <h3>API & Automation</h3>
-          <p>Integrate training with your existing systems. Provision labs via API, Terraform, or CLI.</p>
-        </div>
-        <div class="card feature-card">
-          <div class="feature-icon">&#128101;</div>
-          <h3>Team Analytics</h3>
-          <p>Track skill progression across your organization. Identify knowledge gaps and training needs.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Infrastructure Status -->
-  <section class="section section-alt" id="infrastructure">
-    <div class="container">
-      <h2 class="section-title">Global Infrastructure</h2>
-      <p class="section-desc">High-availability training labs across multiple regions</p>
-      <div class="card mt-4">
-        <div class="infra-status-header">
-          <h3>System Status</h3>
-          <span class="status-badge status-operational">All Systems Operational</span>
-        </div>
-        <div class="infra-regions mt-3">
-          <div class="region-item">
-            <div class="region-info">
-              <span class="region-dot status-online"></span>
-              <span class="region-name">North America (US-East)</span>
-            </div>
-            <span class="region-latency">12ms</span>
-          </div>
-          <div class="region-item">
-            <div class="region-info">
-              <span class="region-dot status-online"></span>
-              <span class="region-name">Europe (EU-West)</span>
-            </div>
-            <span class="region-latency">28ms</span>
-          </div>
-          <div class="region-item">
-            <div class="region-info">
-              <span class="region-dot status-online"></span>
-              <span class="region-name">Asia Pacific (APAC)</span>
-            </div>
-            <span class="region-latency">45ms</span>
-          </div>
-          <div class="region-item">
-            <div class="region-info">
-              <span class="region-dot status-online"></span>
-              <span class="region-name">South America (SA-East)</span>
-            </div>
-            <span class="region-latency">52ms</span>
-          </div>
-        </div>
-        <div class="infra-metrics mt-3">
-          <div class="metric">
-            <span class="metric-value">99.99%</span>
-            <span class="metric-label">API Uptime</span>
-          </div>
-          <div class="metric">
-            <span class="metric-value">&lt;50ms</span>
-            <span class="metric-label">Avg Response</span>
-          </div>
-          <div class="metric">
-            <span class="metric-value">2.5M+</span>
-            <span class="metric-label">Daily Requests</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Solutions -->
-  <section class="section" id="solutions">
-    <div class="container">
-      <h2 class="section-title">Enterprise Learning Paths</h2>
-      <p class="section-desc">Comprehensive tracks designed for engineering teams</p>
-      <div class="grid grid-2 gap-3 mt-4">
-        <div class="card">
-          <h3>&#127794; Linux Foundations</h3>
-          <p class="mt-1">Enterprise Linux administration with RHEL and Ubuntu LTS. Shell scripting, system monitoring, and automation fundamentals.</p>
-          <ul class="feature-list mt-2">
-            <li>Bash & Python scripting</li>
-            <li>Systemd service management</li>
-            <li>SELinux & AppArmor security</li>
-            <li>Performance monitoring with eBPF</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h3>&#128295; SRE & Platform Engineering</h3>
-          <p class="mt-1">Site Reliability Engineering practices, observability, and platform automation at enterprise scale.</p>
-          <ul class="feature-list mt-2">
-            <li>Kubernetes cluster operations</li>
-            <li>Prometheus & Grafana observability</li>
-            <li>Chaos engineering principles</li>
-            <li>Capacity planning & autoscaling</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h3>&#9729;&#65039; Cloud Architecture</h3>
-          <p class="mt-1">Multi-cloud infrastructure design with AWS, Azure, and GCP. Cost optimization and security best practices.</p>
-          <ul class="feature-list mt-2">
-            <li>Infrastructure as Code (Terraform)</li>
-            <li>Cloud networking & security</li>
-            <li>Serverless & container orchestration</li>
-            <li>FinOps cost management</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h3>&#128272; DevSecOps & Compliance</h3>
-          <p class="mt-1">Security-first development workflows, compliance automation, and secure CI/CD pipelines.</p>
-          <ul class="feature-list mt-2">
-            <li>Container security scanning</li>
-            <li>Secrets management (Vault)</li>
-            <li>SOC 2 & ISO 27001 compliance</li>
-            <li>Incident response automation</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Pricing -->
-  <section class="section" id="pricing">
-    <div class="container">
-      <h2 class="section-title">Enterprise Plans</h2>
-      <p class="section-desc">Scalable training solutions for engineering organizations</p>
-      <div class="grid grid-3 gap-3 mt-4">
-        <div class="card pricing-card">
-          <h3 class="pricing-name">Starter</h3>
-          <div class="pricing-price">$49<small>/user/mo</small></div>
-          <p class="pricing-desc">For small teams getting started with cloud training</p>
-          <ul class="pricing-features">
-            <li>&#10003; Core curriculum access</li>
-            <li>&#10003; Standard labs</li>
-            <li>&#10003; Email support</li>
-            <li>&#10003; Basic analytics</li>
-            <li>&#10007; Custom content</li>
-          </ul>
-          <button class="btn btn-outline" onclick="showRegisterModal()">Get Started</button>
-        </div>
-        <div class="card pricing-card pricing-featured">
-          <div class="pricing-badge">Most Popular</div>
-          <h3 class="pricing-name">Business</h3>
-          <div class="pricing-price">$99<small>/user/mo</small></div>
-          <p class="pricing-desc">Complete platform for growing engineering teams</p>
-          <ul class="pricing-features">
-            <li>&#10003; Full curriculum access</li>
-            <li>&#10003; Advanced sandbox labs</li>
-            <li>&#10003; Priority support</li>
-            <li>&#10003; Advanced analytics</li>
-            <li>&#10003; SSO integration</li>
-            <li>&#10003; API access</li>
-          </ul>
-          <button class="btn btn-primary" onclick="showRegisterModal()">Request Demo</button>
-        </div>
-        <div class="card pricing-card">
-          <h3 class="pricing-name">Enterprise</h3>
-          <div class="pricing-price">Custom</div>
-          <p class="pricing-desc">Tailored solutions for large organizations</p>
-          <ul class="pricing-features">
-            <li>&#10003; Everything in Business</li>
-            <li>&#10003; Custom learning paths</li>
-            <li>&#10003; Dedicated success manager</li>
-            <li>&#10003; Private cloud environments</li>
-            <li>&#10003; SLA guarantees</li>
-            <li>&#10003; On-premise deployment</li>
-          </ul>
-          <button class="btn btn-secondary" onclick="showRegisterModal()">Contact Sales</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Labs -->
-  <section class="section section-alt" id="docs">
-    <div class="container">
-      <h2 class="section-title">API & Developer Resources</h2>
-      <p class="section-desc">Integrate training environments with your CI/CD pipeline</p>
-      <div class="card mt-4 code-block">
-        <h3>Quick Start API</h3>
-        <div class="dns-config mt-2">
-          <div class="dns-row"><span class="dns-label">Auth:</span><code>export CIA_API_KEY="your_api_key"</code><button class="btn btn-sm btn-outline" onclick="copyText('export CIA_API_KEY=your_api_key')">Copy</button></div>
-          <div class="dns-row"><span class="dns-label">Create Lab:</span><code>curl -H "Authorization: $CIA_API_KEY" https://api.cloudinfra.academy/v1/labs</code><button class="btn btn-sm btn-outline" onclick="copyText('curl -H Authorization: $CIA_API_KEY https://api.cloudinfra.academy/v1/labs')">Copy</button></div>
-          <div class="dns-row"><span class="dns-label">Get Status:</span><code>curl -H "Authorization: $CIA_API_KEY" https://api.cloudinfra.academy/v1/labs/status</code><button class="btn btn-sm btn-outline" onclick="copyText('curl -H Authorization: $CIA_API_KEY https://api.cloudinfra.academy/v1/labs/status')">Copy</button></div>
-          <div class="dns-row"><span class="dns-label">Provision:</span><code>cia-cli provision --template kubernetes-advanced</code><button class="btn btn-sm btn-outline" onclick="copyText('cia-cli provision --template kubernetes-advanced')">Copy</button></div>
-        </div>
-      </div>
-      <div class="grid grid-3 gap-3 mt-3">
-        <div class="card"><h4>&#128218; API Documentation</h4><p class="mt-1">Complete REST API reference for automation and integration.</p></div>
-        <div class="card"><h4>&#128295; CLI Tools</h4><p class="mt-1">Command-line interface for managing lab environments at scale.</p></div>
-        <div class="card"><h4>&#127891; Terraform Provider</h4><p class="mt-1">Infrastructure as Code support for training environment provisioning.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- About -->
-  <section class="section" id="about">
-    <div class="container">
-      <h2 class="section-title">About Linux Akademie Berlin GmbH</h2>
-      <div class="card mt-4">
-        <p>Linux Akademie Berlin GmbH is a fictional German education company focused on Linux administration, package management, and infrastructure operations workshops for IT teams.</p>
-        <p class="mt-2">Our programs cover Debian, Ubuntu, RHEL, package lifecycle management (APT, DNF, RPM), and practical hardening labs for production environments. Training is delivered in German with enterprise coaching tracks.</p>
-        <div class="grid grid-4 gap-2 mt-3 text-center">
-          <div><strong style="font-size:24px;color:var(--primary)">500+</strong><br><small>Enterprise Clients</small></div>
-          <div><strong style="font-size:24px;color:var(--primary)">50K+</strong><br><small>Engineers Trained</small></div>
-          <div><strong style="font-size:24px;color:var(--primary)">12</strong><br><small>Global Regions</small></div>
-          <div><strong style="font-size:24px;color:var(--primary)">99.9%</strong><br><small>SLA Uptime</small></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Foreign Control Summary (shown under camouflage site) -->
-  <section class="section section-alt" id="foreign-panel">
-    <div class="container">
-      <h2 class="section-title">Interconnect Control Summary</h2>
-      <p class="section-desc">Operational overview for Iran link key, resource usage, active connections, and tunnel status</p>
-      <div class="grid grid-2 gap-3 mt-4">
-        <div class="card">
-          <h3>Iran Server Link</h3>
-          <div id="foreign-iran-link" class="mt-2">Loading...</div>
-        </div>
-        <div class="card">
-          <h3>Resource Usage</h3>
-          <div id="foreign-resources" class="mt-2">Loading...</div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <h3>Active Connections</h3>
-        <div id="foreign-connections" class="mt-2">Loading...</div>
-      </div>
-      <div class="card mt-3">
+    <div class="status-grid">
+      <section class="card">
+        <h3>Iran Connection</h3>
+        <div id="foreign-iran-link">Loading...</div>
+      </section>
+      <section class="card">
+        <h3>Resources</h3>
+        <div id="foreign-resources">Loading...</div>
+      </section>
+      <section class="card">
+        <h3>Connections</h3>
+        <div id="foreign-connections">Loading...</div>
+      </section>
+      <section class="card" style="grid-column: 1 / -1;">
         <h3>Active Tunnels</h3>
-        <div id="foreign-tunnels" class="mt-2">Loading...</div>
-      </div>
+        <div id="foreign-tunnels">Loading...</div>
+      </section>
     </div>
-  </section>
 
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <div class="grid grid-4 gap-3">
-        <div>
-          <h4>Linux Akademie Berlin GmbH</h4>
-          <p class="footer-desc">Linux education and package operations workshops in German for enterprise teams.</p>
-          <div class="footer-badges mt-2">
-            <span class="badge">SOC 2 Compliant</span>
-            <span class="badge">ISO 27001</span>
-          </div>
-        </div>
-        <div><h4>Solutions</h4><a href="#features">Enterprise Training</a><a href="#solutions">Learning Paths</a><a href="#pricing">Team Plans</a><a href="#docs">API Resources</a></div>
-        <div><h4>Resources</h4><a href="#docs">Documentation</a><a href="#">System Status</a><a href="#">Knowledge Base</a><a href="#">Community</a></div>
-        <div><h4>Company</h4><a href="#about">Über uns</a><a href="#">Sicherheit</a><a href="#">Kontakt: +49 30 8876 5512</a><a href="#">Adresse: Potsdamer Platz 11, Berlin</a></div>
-      </div>
-      <div class="footer-bottom mt-4">
-        <p>&copy; 2024 Linux Akademie Berlin GmbH (Fictional). All rights reserved.</p>
-        <p class="footer-legal">Handelsregister: HRB 998877 (Fictional) | Support: kontakt@linux-akademie-berlin.de</p>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Login Modal -->
-  <div class="modal-overlay" id="loginModal">
-    <div class="modal">
-      <div class="modal-header"><h3>Client Portal Sign In</h3><button class="modal-close" onclick="closeModal('loginModal')">&times;</button></div>
-      <div id="login-error" class="alert alert-error" style="display:none"></div>
-      <form onsubmit="handleLogin(event)">
-        <div class="form-group"><label>Organization Email</label><input type="email" class="form-control" id="login-username" required></div>
-        <div class="form-group"><label>Password</label><input type="password" class="form-control" id="login-password" required></div>
-        <div class="form-group"><label>2FA Code (if enabled)</label><input type="text" class="form-control" id="login-otp" inputmode="numeric" autocomplete="one-time-code"></div>
-        <div class="form-group">
-          <label>Security Verification</label>
-          <div class="captcha-box"><div id="login-captcha-svg"></div><button type="button" class="captcha-refresh" onclick="loadCaptcha('login')">&#8635;</button></div>
-          <input type="text" class="form-control" id="login-captcha" placeholder="Enter verification code" required>
-          <input type="hidden" id="login-captcha-id">
-        </div>
-        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="login-btn">Sign In to Portal</button>
-      </form>
-      <p class="text-center mt-2" style="font-size:13px;color:var(--text-secondary)">Need access? <a href="#" onclick="closeModal('loginModal');showRegisterModal()">Request Demo</a></p>
-    </div>
-  </div>
-
-  <!-- Register Modal -->
-  <div class="modal-overlay" id="registerModal">
-    <div class="modal">
-      <div class="modal-header"><h3>Request Enterprise Demo</h3><button class="modal-close" onclick="closeModal('registerModal')">&times;</button></div>
-      <div id="register-error" class="alert alert-error" style="display:none"></div>
-      <form onsubmit="handleRegister(event)">
-        <div class="form-group"><label>Full Name</label><input type="text" class="form-control" id="reg-name" required></div>
-        <div class="form-group"><label>Work Email</label><input type="email" class="form-control" id="reg-email" required></div>
-        <div class="form-group"><label>Company</label><input type="text" class="form-control" id="reg-company" required></div>
-        <div class="form-group"><label>Team Size</label>
-          <select class="form-control" id="reg-team-size">
-            <option>1-10</option>
-            <option>11-50</option>
-            <option>51-200</option>
-            <option>201-500</option>
-            <option>500+</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Password</label><input type="password" class="form-control" id="reg-password" required></div>
-        <div class="form-group"><label>Confirm Password</label><input type="password" class="form-control" id="reg-password2" required></div>
-        <div class="form-group">
-          <label>Security Verification</label>
-          <div class="captcha-box"><div id="register-captcha-svg"></div><button type="button" class="captcha-refresh" onclick="loadCaptcha('register')">&#8635;</button></div>
-          <input type="text" class="form-control" id="register-captcha" placeholder="Enter verification code" required>
-          <input type="hidden" id="register-captcha-id">
-        </div>
-        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="register-btn">Request Demo Access</button>
-      </form>
-      <p class="text-center mt-2" style="font-size:13px;color:var(--text-secondary)">Already have access? <a href="#" onclick="closeModal('registerModal');showLoginModal()">Sign In</a></p>
-    </div>
-  </div>
+    <p class="small" style="margin-top:16px">Last refresh: <span id="refresh-at">-</span></p>
+  </main>
 
   <script src="/js/en-app.js"></script>
 </body>

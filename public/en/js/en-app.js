@@ -1,9 +1,8 @@
 /**
- * Elahe Panel - English/Foreign Site JavaScript
+ * Elahe Panel - Foreign panel status-only UI
  */
 
 let siteSettings = {};
-let captchaData = { login: {}, register: {} };
 
 async function loadSettings() {
   try {
@@ -16,145 +15,12 @@ async function loadSettings() {
   } catch (e) {}
 }
 
-function toggleMenu() { document.getElementById('nav-links').classList.toggle('active'); }
-function scrollTo(sel) { document.querySelector(sel)?.scrollIntoView({ behavior: 'smooth' }); }
-
-window.addEventListener('scroll', () => {
-  document.getElementById('header').classList.toggle('scrolled', window.scrollY > 50);
-});
-
-async function loadCaptcha(type) {
-  try {
-    const res = await fetch('/api/auth/captcha');
-    const data = await res.json();
-    captchaData[type] = data;
-    document.getElementById(`${type}-captcha-svg`).innerHTML = data.svg;
-    document.getElementById(`${type}-captcha-id`).value = data.id;
-  } catch (e) {}
-}
-
-function showLoginModal() {
-  document.getElementById('loginModal').classList.add('active');
-  document.getElementById('login-error').style.display = 'none';
-  loadCaptcha('login');
-}
-
-function showRegisterModal() {
-  document.getElementById('registerModal').classList.add('active');
-  document.getElementById('register-error').style.display = 'none';
-  loadCaptcha('register');
-}
-
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
-document.querySelectorAll('.modal-overlay').forEach(o => {
-  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('active'); });
-});
-
-async function handleLogin(e) {
-  e.preventDefault();
-  const btn = document.getElementById('login-btn');
-  const err = document.getElementById('login-error');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Signing in...';
-  err.style.display = 'none';
-
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: document.getElementById('login-username').value,
-        password: document.getElementById('login-password').value,
-        otp: document.getElementById('login-otp').value,
-        captchaId: document.getElementById('login-captcha-id').value,
-        captchaAnswer: document.getElementById('login-captcha').value,
-      }),
-    });
-    const result = await res.json();
-    if (result.success) {
-      localStorage.setItem('token', result.token);
-      localStorage.setItem('admin', JSON.stringify(result.admin));
-      window.location.href = '/admin/';
-    } else {
-      err.textContent = result.error || 'Invalid credentials';
-      err.style.display = 'block';
-      if (result.code === 'OTP_REQUIRED') {
-        document.getElementById('login-otp').focus();
-      }
-      loadCaptcha('login');
-    }
-  } catch (ex) {
-    err.textContent = 'Connection error. Please try again.';
-    err.style.display = 'block';
-    loadCaptcha('login');
-  }
-  btn.disabled = false;
-  btn.innerHTML = 'Sign In';
-}
-
-async function handleRegister(e) {
-  e.preventDefault();
-  const btn = document.getElementById('register-btn');
-  const err = document.getElementById('register-error');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Creating account...';
-  err.style.display = 'none';
-
-  if (document.getElementById('reg-password').value !== document.getElementById('reg-password2').value) {
-    err.textContent = 'Passwords do not match';
-    err.style.display = 'block';
-    btn.disabled = false;
-    btn.innerHTML = 'Create Account';
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: document.getElementById('reg-name').value,
-        email: document.getElementById('reg-email').value,
-        username: document.getElementById('reg-username').value,
-        password: document.getElementById('reg-password').value,
-        captchaId: document.getElementById('register-captcha-id').value,
-        captchaAnswer: document.getElementById('register-captcha').value,
-      }),
-    });
-    const result = await res.json();
-    err.textContent = (result.error || 'Membership request could not be completed.') + '\nApproval is manual and handled by management.';
-    if (result.code) err.textContent += '\nTracking code: ' + result.code;
-    err.style.display = 'block';
-    loadCaptcha('register');
-  } catch (ex) {
-    err.textContent = 'Server connection failed. Please try again later.';
-    err.style.display = 'block';
-    loadCaptcha('register');
-  }
-  btn.disabled = false;
-  btn.innerHTML = 'Create Account';
-}
-
-function copyText(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    const t = document.createElement('div');
-    t.className = 'alert alert-success';
-    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999';
-    t.textContent = 'Copied!';
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2000);
-  });
-}
-
-document.addEventListener('DOMContentLoaded', () => { loadSettings(); loadForeignStatus(); });
-
-
 async function loadForeignStatus() {
   const iranBox = document.getElementById('foreign-iran-link');
   const resBox = document.getElementById('foreign-resources');
   const conBox = document.getElementById('foreign-connections');
   const tunBox = document.getElementById('foreign-tunnels');
+  const refreshedAt = document.getElementById('refresh-at');
   if (!iranBox || !resBox || !conBox || !tunBox) return;
 
   try {
@@ -187,8 +53,10 @@ async function loadForeignStatus() {
     if (!tunnels.length) {
       tunBox.textContent = 'No active tunnels found.';
     } else {
-      tunBox.innerHTML = `<ul>${tunnels.slice(0, 10).map(t => `<li>${t.protocol} :${t.port} - ${t.status}</li>`).join('')}</ul>`;
+      tunBox.innerHTML = `<ul>${tunnels.slice(0, 20).map(t => `<li>${t.protocol} :${t.port} - ${t.status} (latency: ${t.latency_ms ?? '-'}ms)</li>`).join('')}</ul>`;
     }
+
+    refreshedAt.textContent = new Date().toLocaleString();
   } catch (e) {
     iranBox.textContent = 'Status temporarily unavailable.';
     resBox.textContent = 'Status temporarily unavailable.';
@@ -196,3 +64,9 @@ async function loadForeignStatus() {
     tunBox.textContent = 'Status temporarily unavailable.';
   }
 }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSettings();
+  await loadForeignStatus();
+  setInterval(loadForeignStatus, 15000);
+});

@@ -147,6 +147,54 @@ app.get('/api/public/status', (req, res) => {
   }
 });
 
+
+// ============ FOREIGN REMOTE CONTROL (from Iran panel) ============
+app.post('/api/public/control', async (req, res) => {
+  if (config.mode !== 'foreign') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const token = req.headers['x-connection-token'] || req.body?.connectionToken;
+  const action = req.body?.action;
+
+  if (!token || !action) {
+    return res.status(400).json({ success: false, error: 'connection token and action are required' });
+  }
+
+  try {
+    const db = getDb();
+    const iranServer = db.prepare("SELECT id, connection_token FROM servers WHERE type = 'iran' ORDER BY updated_at DESC LIMIT 1").get();
+    if (!iranServer || iranServer.connection_token !== token) {
+      return res.status(403).json({ success: false, error: 'invalid connection token' });
+    }
+
+    if (action === 'status') {
+      const tunnels = db.prepare("SELECT id, protocol, port, status, score, latency_ms, jitter_ms, updated_at FROM tunnels ORDER BY updated_at DESC LIMIT 20").all();
+      return res.json({
+        success: true,
+        action,
+        resources: {
+          cpu: SystemMonitor.getCPU(),
+          memory: SystemMonitor.getMemory(),
+          disk: SystemMonitor.getDisk(),
+          process: SystemMonitor.getProcessInfo(),
+        },
+        connections: SystemMonitor.getActiveConnections(),
+        tunnels,
+      });
+    }
+
+    if (action === 'monitor') {
+      const result = await autopilotService.runMonitoringCycle();
+      return res.json({ success: true, action, result });
+    }
+
+    return res.status(400).json({ success: false, error: 'unsupported action' });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || 'control failed' });
+  }
+});
+
 // ============ SITE SETTINGS API (public) ============
 app.get('/api/settings/site', (req, res) => {
   const mode = config.mode;
