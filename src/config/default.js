@@ -10,9 +10,16 @@ const dotenv = require('dotenv');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
+function normalizeMode(rawMode) {
+  const mode = (rawMode || '').toString().trim().toLowerCase();
+  if (['foreign', 'kharej', 'external', 'outside', 'out'].includes(mode)) return 'foreign';
+  if (['iran', 'ir', 'internal', 'inside'].includes(mode)) return 'iran';
+  return 'iran';
+}
+
 module.exports = {
   // Server mode: 'iran' or 'foreign'
-  mode: process.env.ELAHE_MODE || 'iran',
+  mode: normalizeMode(process.env.ELAHE_MODE),
   
   // Server settings
   server: {

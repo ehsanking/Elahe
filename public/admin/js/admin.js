@@ -13,6 +13,12 @@ let usersPage = 1;
 let panelMode = 'iran';
 let capabilities = {};
 
+function normalizePanelMode(mode) {
+  const normalized = (mode || '').toString().trim().toLowerCase();
+  if (['foreign', 'kharej', 'external', 'outside', 'out'].includes(normalized)) return 'foreign';
+  return 'iran';
+}
+
 // ============ AUTH CHECK ============
 function checkAuth() {
   if (!token) { window.location.href = '/'; return false; }
@@ -41,7 +47,7 @@ function logout() {
 async function loadCapabilities() {
   const data = await api('/capabilities');
   if (!data) return;
-  panelMode = data.mode;
+  panelMode = normalizePanelMode(data.mode);
   capabilities = data.capabilities;
   document.getElementById('mode-badge').innerHTML = `حالت: <strong style="color:${panelMode === 'iran' ? '#f59e0b' : '#3b82f6'}">${panelMode === 'iran' ? 'ایران' : 'خارج'}</strong>`;
 
