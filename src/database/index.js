@@ -23,6 +23,10 @@ function getDb() {
   return db;
 }
 
+async function initDatabase() {
+  return getDb();
+}
+
 function closeDb() {
   if (db) {
     db.close();
@@ -30,4 +34,4 @@ function closeDb() {
   }
 }
 
-module.exports = { getDb, closeDb };
+module.exports = { getDb, initDatabase, closeDb };
