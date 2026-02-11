@@ -216,13 +216,22 @@ app.get('/api/settings/site', (req, res) => {
 
 // ============ STATIC FILES ============
 const mode = config.mode;
-app.use('/shared', express.static(path.join(config.paths.public, 'shared')));
-app.use('/admin', express.static(path.join(config.paths.public, 'admin')));
+const noCacheStatic = {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+  },
+};
+
+app.use('/shared', express.static(path.join(config.paths.public, 'shared'), noCacheStatic));
+app.use('/admin', express.static(path.join(config.paths.public, 'admin'), noCacheStatic));
 
 if (mode === 'iran') {
-  app.use(express.static(path.join(config.paths.public, 'ir')));
+  app.use(express.static(path.join(config.paths.public, 'ir'), noCacheStatic));
 } else {
-  app.use(express.static(path.join(config.paths.public, 'en')));
+  app.use(express.static(path.join(config.paths.public, 'en'), noCacheStatic));
 }
 
 // ============ SPA FALLBACK ============
