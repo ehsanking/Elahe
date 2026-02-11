@@ -73,6 +73,37 @@ ask_yn() {
   [[ "$answer" =~ ^[Yy]$ ]]
 }
 
+is_port_listening() {
+  local port="$1"
+
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn "sport = :${port}" 2>/dev/null | awk 'NR>1 {print $4}' | grep -q ":${port}$"
+    return $?
+  fi
+
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"${port}" -sTCP:LISTEN -n -P >/dev/null 2>&1
+    return $?
+  fi
+
+  return 1
+}
+
+pick_available_internal_port() {
+  local preferred_start="${1:-3100}"
+  local preferred_end="${2:-3999}"
+  local candidate
+
+  for ((candidate=preferred_start; candidate<=preferred_end; candidate++)); do
+    if ! is_port_listening "$candidate"; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  echo "3000"
+}
+
 check_root() {
   if [ "$EUID" -ne 0 ]; then
     log_err "This script must be run as root. Use: sudo bash elahe.sh"
@@ -1245,8 +1276,8 @@ do_install() {
     log_info "Auto-generated password: ${GREEN}$ADMIN_PASS${NC}"
   fi
   
-  SERVER_PORT="3000"
-  log_info "Panel internal port fixed to ${GREEN}${SERVER_PORT}${NC}; public panel access is on ${GREEN}443${NC}."
+  SERVER_PORT="$(pick_available_internal_port 3100 3999)"
+  log_info "Panel internal port set to ${GREEN}${SERVER_PORT}${NC}; public panel access is on ${GREEN}443${NC}."
   ask "Core engine (xray/singbox)" "xray" CORE_ENGINE
   
   # Mode-specific config (defaults only - no color prompts)
@@ -1274,6 +1305,25 @@ do_install() {
     # Update mode if changed
     sed -i "s/^ELAHE_MODE=.*/ELAHE_MODE=${SERVER_MODE}/" "$ENV_FILE" 2>/dev/null || true
     grep -q "^SSL_TERMINATE_PROXY=" "$ENV_FILE" || echo "SSL_TERMINATE_PROXY=true" >> "$ENV_FILE"
+    local existing_port
+    existing_port=$(grep '^PORT=' "$ENV_FILE" | head -n1 | cut -d'=' -f2)
+    if [ -n "$existing_port" ]; then
+      SERVER_PORT="$existing_port"
+    fi
+
+    if is_port_listening "$SERVER_PORT"; then
+      local replacement_port
+      replacement_port=$(pick_available_internal_port 3100 3999)
+      if [ "$replacement_port" != "$SERVER_PORT" ]; then
+        log_warn "Configured internal port ${SERVER_PORT} is in use. Switching to ${replacement_port}."
+        if grep -q '^PORT=' "$ENV_FILE"; then
+          sed -i "s/^PORT=.*/PORT=${replacement_port}/" "$ENV_FILE"
+        else
+          echo "PORT=${replacement_port}" >> "$ENV_FILE"
+        fi
+        SERVER_PORT="$replacement_port"
+      fi
+    fi
   else
   cat > "$ENV_FILE" << ENVEOF
 # Elahe Panel Configuration
