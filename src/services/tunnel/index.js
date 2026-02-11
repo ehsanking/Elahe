@@ -20,25 +20,35 @@ class TunnelService {
    */
   static addTunnel(data) {
     const db = getDb();
+    let allocatedPort = null;
     try {
       const blockedPorts = new Set([80, 443]);
 
-      // Get random port from autopilot service if not specified
-      let port = data.port;
-      if (!port) {
+      // Port policy: random (default) OR admin-selected
+      let port;
+      if (data.port === undefined || data.port === null || data.port === '') {
         port = autopilotService.getRandomPort();
+      } else {
+        const reserveResult = autopilotService.reservePort(data.port);
+        if (!reserveResult.success) {
+          return reserveResult;
+        }
+        port = reserveResult.port;
       }
-
-      port = parseInt(port, 10);
-      if (!Number.isInteger(port) || port < 1 || port > 65535) {
-        return { success: false, error: 'Invalid port. Valid range is 1-65535.' };
-      }
+      allocatedPort = port;
 
       if (blockedPorts.has(port)) {
+        autopilotService.releasePort(port);
         return {
           success: false,
           error: 'Port 80 and 443 are reserved for web/SSL entry and cannot be used for tunnel engines.',
         };
+      }
+
+      const existing = db.prepare("SELECT id FROM tunnels WHERE port = ? AND status = 'active' LIMIT 1").get(port);
+      if (existing) {
+        autopilotService.releasePort(port);
+        return { success: false, error: `Port ${port} is already in use by tunnel #${existing.id}.` };
       }
 
       const result = db.prepare(`
@@ -67,6 +77,9 @@ class TunnelService {
       log.info('Tunnel added with random port', { protocol: data.protocol, port, tunnelId: tunnel.id });
       return { success: true, tunnel };
     } catch (err) {
+      if (allocatedPort) {
+        autopilotService.releasePort(allocatedPort);
+      }
       return { success: false, error: err.message };
     }
   }

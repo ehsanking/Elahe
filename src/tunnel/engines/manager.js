@@ -123,10 +123,30 @@ class TunnelManager {
       return { success: false, error: 'Iran or Foreign server not found' };
     }
 
-    // Get random port if not specified
-    let assignedPort = port;
-    if (!assignedPort) {
+    // Port policy: random (default) OR admin-selected
+    let assignedPort;
+    if (port === undefined || port === null || port === '') {
       assignedPort = autopilotService.getRandomPort();
+    } else {
+      const reserveResult = autopilotService.reservePort(port);
+      if (!reserveResult.success) {
+        return reserveResult;
+      }
+      assignedPort = reserveResult.port;
+    }
+
+    if ([80, 443].includes(assignedPort)) {
+      autopilotService.releasePort(assignedPort);
+      return {
+        success: false,
+        error: 'Port 80 and 443 are reserved for web/SSL entry and cannot be used for tunnel engines.',
+      };
+    }
+
+    const existing = db.prepare("SELECT id FROM tunnels WHERE port = ? AND status = 'active' LIMIT 1").get(assignedPort);
+    if (existing) {
+      autopilotService.releasePort(assignedPort);
+      return { success: false, error: `Port ${assignedPort} is already in use by tunnel #${existing.id}.` };
     }
 
     // Create DB record

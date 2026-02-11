@@ -284,6 +284,18 @@ async function loadTunnels() {
 }
 async function runMonitoring() { const btn=event.target; btn.disabled=true; btn.textContent='\u062F\u0631 \u062D\u0627\u0644 \u0627\u062C\u0631\u0627...'; const r=await api('/tunnels/monitor',{method:'POST'}); btn.disabled=false; btn.textContent='\u2699 \u0627\u062C\u0631\u0627\u06CC \u0645\u0627\u0646\u06CC\u062A\u0648\u0631'; if(r){loadTunnels();alert(`\u0645\u0627\u0646\u06CC\u062A\u0648\u0631\u06CC\u0646\u06AF \u06A9\u0627\u0645\u0644 \u0634\u062F. \u0628\u0631\u0631\u0633\u06CC: ${r.checked}, \u062A\u0639\u0648\u06CC\u0636: ${r.switched}`);} }
 async function deleteTunnel(id) { if (!confirm('\u062D\u0630\u0641 \u0627\u06CC\u0646 \u062A\u0627\u0646\u0644\u061F')) return; await api(`/tunnels/${id}`,{method:'DELETE'}); loadTunnels(); }
+function showAddTunnelModal() { openModal('\u0627\u0641\u0632\u0648\u062F\u0646 \u062A\u0627\u0646\u0644', `
+  <form onsubmit="addTunnel(event)">
+    <div class="form-group"><label>\u067E\u0631\u0648\u062A\u06A9\u0644 *</label><select class="form-control" id="at-protocol"><option value="gost">GOST</option><option value="frp">FRP</option><option value="chisel">Chisel</option><option value="ssh">SSH</option><option value="trusttunnel">TrustTunnel</option></select></div>
+    <div class="form-group"><label>ID \u0633\u0631\u0648\u0631 \u0627\u06CC\u0631\u0627\u0646 *</label><input class="form-control" id="at-iran" type="number" min="1" required></div>
+    <div class="form-group"><label>ID \u0633\u0631\u0648\u0631 \u062E\u0627\u0631\u062C *</label><input class="form-control" id="at-foreign" type="number" min="1" required></div>
+    <div class="form-group"><label>\u062D\u0627\u0644\u062A \u067E\u0648\u0631\u062A</label><select class="form-control" id="at-port-mode" onchange="toggleTunnelPortInput()"><option value="random">\u062A\u0635\u0627\u062F\u0641\u06CC (\u067E\u06CC\u0634\u200C\u0641\u0631\u0636)</option><option value="manual">\u0627\u0646\u062A\u062E\u0627\u0628 \u0627\u062F\u0645\u06CC\u0646</option></select></div>
+    <div class="form-group" id="at-port-wrap" style="display:none"><label>\u067E\u0648\u0631\u062A \u062F\u0644\u062E\u0648\u0627\u0647</label><input class="form-control" id="at-port" type="number" min="1" max="65535" placeholder="10000"></div>
+    <div class="form-group"><label>\u062A\u0631\u0646\u0633\u067E\u0648\u0631\u062A</label><input class="form-control" id="at-transport" value="tcp"></div>
+    <button type="submit" class="btn btn-primary" style="width:100%">\u0627\u06CC\u062C\u0627\u062F \u062A\u0627\u0646\u0644</button>
+  </form>`); }
+function toggleTunnelPortInput() { const mode = document.getElementById('at-port-mode')?.value; const wrap = document.getElementById('at-port-wrap'); if (wrap) wrap.style.display = mode === 'manual' ? 'block' : 'none'; }
+async function addTunnel(e) { e.preventDefault(); const mode = document.getElementById('at-port-mode').value; const portValue = document.getElementById('at-port').value; const body = { protocol: document.getElementById('at-protocol').value, iranServerId: parseInt(document.getElementById('at-iran').value), foreignServerId: parseInt(document.getElementById('at-foreign').value), transport: document.getElementById('at-transport').value || 'tcp' }; if (mode === 'manual' && portValue) body.port = parseInt(portValue); const result = await api('/tunnels', { method:'POST', body: JSON.stringify(body) }); if (result && result.success) { closeModal('genericModal'); loadTunnels(); alert(`\u062A\u0627\u0646\u0644 \u0628\u0627 \u067E\u0648\u0631\u062A ${result.tunnel?.port || body.port || '-'} \u0627\u06CC\u062C\u0627\u062F \u0634\u062F.`); } }
 
 // ============ AUTOPILOT ============
 async function loadAutopilot() {
