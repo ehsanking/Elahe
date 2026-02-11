@@ -69,6 +69,28 @@ elahe uninstall        # حذف
 - فیلتر تبلیغات و بدافزار
 - قابلیت بروزرسانی خودکار از پنل
 
+### عیب‌یابی 502 Bad Gateway (Nginx)
+
+اگر خطای `502 Bad Gateway` دریافت می‌کنید، معمولاً Nginx به پورت اشتباهی از Node.js پروکسی می‌کند یا سرویس Node روی آن پورت بالا نیامده است.
+
+1. بررسی صحت کانفیگ Nginx:
+```bash
+nginx -t
+```
+2. بررسی وضعیت سرویس‌ها:
+```bash
+systemctl status nginx --no-pager
+systemctl status elahe --no-pager
+```
+3. بررسی پورت داخلی پنل از فایل `.env` (کلید `PORT`) و اطمینان از یکسان بودن آن با `proxy_pass` در کانفیگ Nginx.
+4. مشاهده لاگ‌ها:
+```bash
+journalctl -u elahe -n 100 --no-pager
+tail -n 100 /var/log/nginx/error.log
+```
+
+> در نسخه جدید اسکریپت‌های نصب، پورت upstream به صورت خودکار از `.env` خوانده می‌شود و قبل از ری‌استارت، تست `nginx -t` اجرا می‌گردد تا خطاهای 502 ناشی از عدم تطابق پورت کاهش یابد.
+
 ### پروتکل‌های پشتیبانی شده
 
 | پروتکل | پورت پیش‌فرض | توضیحات |
@@ -107,6 +129,22 @@ elahe uninstall        # حذف
 - Dual mode: Iran (camouflage) and Foreign (DNS provider)
 - Marzban/3x-ui compatibility
 - System monitoring (CPU, RAM, Disk, Bandwidth)
+
+### 502 Bad Gateway (Nginx) Troubleshooting
+
+A `502 Bad Gateway` usually means Nginx is proxying to the wrong Node.js upstream port, or the Elahe service is not listening on that port.
+
+```bash
+nginx -t
+systemctl status nginx --no-pager
+systemctl status elahe --no-pager
+journalctl -u elahe -n 100 --no-pager
+tail -n 100 /var/log/nginx/error.log
+```
+
+Make sure `PORT` in `.env` matches the Nginx `proxy_pass` upstream.
+
+> Installer scripts now read upstream port from `.env` and run `nginx -t` before restarting Nginx to reduce 502 errors caused by port mismatch.
 
 ### Quick Install
 
