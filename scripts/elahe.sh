@@ -300,8 +300,17 @@ setup_project_files() {
   check_github_access || true
 
   # ── Strategy 2: Download release archive (preferred - works even if git is blocked) ──
-  log_info "بررسی آخرین نسخه در GitHub..."
-  fetch_latest_release || true  # Even if no release, RELEASE_TARBALL may be set to main branch tarball
+  if [ "${ELAHE_UPDATE_CHANNEL:-release}" = "main" ]; then
+    LATEST_TAG="main"
+    LATEST_VERSION="main"
+    RELEASE_TARBALL="${GITHUB_API}/tarball/main"
+    RELEASE_ZIPBALL="${GITHUB_API}/zipball/main"
+    RELEASE_NOTES=""
+    log_info "کانال بروزرسانی روی main تنظیم شده است (اعمال آخرین تغییرات بدون نیاز به تگ جدید)..."
+  else
+    log_info "بررسی آخرین نسخه در GitHub..."
+    fetch_latest_release || true  # Even if no release, RELEASE_TARBALL may be set to main branch tarball
+  fi
 
   if [ -n "${RELEASE_TARBALL:-}" ]; then
     local tag_label="${LATEST_TAG:-main}"
@@ -1683,13 +1692,16 @@ do_update() {
   log_info "نسخه فعلی: ${current_ver}"
   
   # Fetch latest release
+  local update_channel="release"
   if fetch_latest_release; then
     log_info "Latest available: ${LATEST_VERSION}"
     if [ "$current_ver" = "$LATEST_VERSION" ]; then
-      log_ok "Already running the latest version (${current_ver})"
-      if ! ask_yn "Reinstall anyway?" "n"; then
+      log_warn "نسخه نصبی با آخرین تگ یکسان است (${current_ver})"
+      log_info "برای اطمینان از دریافت آخرین اصلاحات بدون انتشار تگ جدید، می‌توان از شاخه main بروزرسانی کرد."
+      if ! ask_yn "Update from main branch anyway?" "y"; then
         return
       fi
+      update_channel="main"
     else
       echo -e "  ${GREEN}Update available: ${current_ver} -> ${LATEST_VERSION}${NC}"
       if [ -n "${RELEASE_NOTES:-}" ]; then
@@ -1708,7 +1720,7 @@ do_update() {
   
   # Use setup_project_files which handles backup/restore
   cd "$INSTALL_DIR"
-  setup_project_files || {
+  ELAHE_UPDATE_CHANNEL="$update_channel" setup_project_files || {
     log_err "Update failed. Restarting with existing version..."
     systemctl start elahe 2>/dev/null || true
     return 1
