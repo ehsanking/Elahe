@@ -14,26 +14,33 @@ process.env.LOG_LEVEL = 'error'; // Reduce log noise during tests
 const testDbPath = path.join(__dirname, '../data/test-elahe.db');
 process.env.DB_PATH = testDbPath;
 
-// Setup test database before all tests
+// Setup test database before each test suite (but not for validation tests)
 beforeAll(async () => {
-  // Ensure data directory exists
-  const dataDir = path.dirname(testDbPath);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+  // Only initialize DB if this is not the validation test
+  if (!process.env.SKIP_DB_INIT) {
+    // Ensure data directory exists
+    const dataDir = path.dirname(testDbPath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
 
-  // Initialize database
-  const { initDatabase } = require('../src/database');
-  await initDatabase();
+    // Initialize database
+    const { initDatabase } = require('../src/database');
+    await initDatabase();
+  }
 });
 
 // Cleanup after all tests
 afterAll(async () => {
   // Close database connection
-  const { getDb } = require('../src/database');
-  const db = getDb();
-  if (db) {
-    db.close();
+  try {
+    const { getDb } = require('../src/database');
+    const db = getDb();
+    if (db) {
+      db.close();
+    }
+  } catch (e) {
+    // Ignore if DB was never initialized
   }
 
   // Optionally remove test database
