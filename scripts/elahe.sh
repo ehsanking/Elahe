@@ -1525,7 +1525,7 @@ server {
   ssl_session_timeout 10m;
 
   location / {
-    proxy_pass http://127.0.0.1:${app_port};
+    proxy_pass https://127.0.0.1:${app_port};
     proxy_http_version 1.1;
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
@@ -1533,6 +1533,8 @@ server {
     proxy_set_header X-Forwarded-Proto \$scheme;
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection "upgrade";
+    proxy_ssl_server_name on;
+    proxy_ssl_verify off;
   }
 }
 EOF
@@ -1553,7 +1555,7 @@ server {
   ssl_certificate_key ${CERTS_DIR}/privkey.pem;
 
   location / {
-    proxy_pass http://127.0.0.1:${app_port};
+    proxy_pass https://127.0.0.1:${app_port};
     proxy_http_version 1.1;
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
@@ -1561,6 +1563,8 @@ server {
     proxy_set_header X-Forwarded-Proto \$scheme;
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection "upgrade";
+    proxy_ssl_server_name on;
+    proxy_ssl_verify off;
   }
 }
 EOF
