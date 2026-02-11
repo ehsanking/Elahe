@@ -99,6 +99,8 @@ app.get('/api/files/terms', (req, res) => {
 });
 
 
+// NOTE: Camouflage entry pages must not expose operational panel telemetry publicly.
+// Only static site settings are exposed before authentication.
 // ============ SITE SETTINGS API (public) ============
 app.get('/api/settings/site', (req, res) => {
   const mode = config.mode;

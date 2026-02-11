@@ -147,4 +147,5 @@ function copyText(text) {
   });
 }
 
+// Do not fetch panel status on public camouflage pages; only load branding settings.
 document.addEventListener('DOMContentLoaded', () => { loadSettings(); });
