@@ -95,6 +95,23 @@ class AutopilotService {
   }
 
   /**
+   * Try to reserve a specific port (admin-selected mode)
+   */
+  reservePort(port) {
+    const parsedPort = parseInt(port, 10);
+    if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+      return { success: false, error: 'Invalid port. Valid range is 1-65535.' };
+    }
+
+    if (this.assignedPorts.has(parsedPort)) {
+      return { success: false, error: `Port ${parsedPort} is already assigned to another active tunnel.` };
+    }
+
+    this.assignedPorts.add(parsedPort);
+    return { success: true, port: parsedPort };
+  }
+
+  /**
    * Release a port back to the pool
    */
   releasePort(port) {
