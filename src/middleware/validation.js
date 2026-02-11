@@ -17,7 +17,8 @@ const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const errorMessages = errors.array().map(err => ({
-      field: err.param,
+      // express-validator v7 uses `path` instead of the legacy `param`
+      field: err.path || err.param,
       message: err.msg,
       value: err.value
     }));
