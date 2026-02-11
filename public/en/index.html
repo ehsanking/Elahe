@@ -42,8 +42,8 @@
           <a href="#about" class="nav-link">About</a>
         </div>
         <div class="nav-actions">
-          <button class="btn btn-outline btn-sm" onclick="showLoginModal()">Client Login</button>
-          <button class="btn btn-primary btn-sm" onclick="showRegisterModal()">Request Demo</button>
+          <button class="btn btn-outline btn-sm" onclick="showLoginModal()">Server Login</button>
+          <button class="btn btn-primary btn-sm" onclick="showRegisterModal()">Membership</button>
           <button class="mobile-menu-btn" onclick="toggleMenu()">&#9776;</button>
         </div>
       </nav>
@@ -306,10 +306,10 @@
   <!-- About -->
   <section class="section" id="about">
     <div class="container">
-      <h2 class="section-title">About Cloud Infrastructure Academy</h2>
+      <h2 class="section-title">About Linux Akademie Berlin GmbH</h2>
       <div class="card mt-4">
-        <p>Cloud Infrastructure Academy was established in 2018 by former Google and AWS infrastructure engineers to address the growing need for practical, hands-on training in cloud technologies and Linux systems administration.</p>
-        <p class="mt-2">Our enterprise platform delivers immersive lab environments that replicate production-scale infrastructure, enabling engineering teams to practice complex scenarios without risk. We support Fortune 500 companies, government agencies, and technology startups worldwide.</p>
+        <p>Linux Akademie Berlin GmbH is a fictional German education company focused on Linux administration, package management, and infrastructure operations workshops for IT teams.</p>
+        <p class="mt-2">Our programs cover Debian, Ubuntu, RHEL, package lifecycle management (APT, DNF, RPM), and practical hardening labs for production environments. Training is delivered in German with enterprise coaching tracks.</p>
         <div class="grid grid-4 gap-2 mt-3 text-center">
           <div><strong style="font-size:24px;color:var(--primary)">500+</strong><br><small>Enterprise Clients</small></div>
           <div><strong style="font-size:24px;color:var(--primary)">50K+</strong><br><small>Engineers Trained</small></div>
@@ -320,13 +320,40 @@
     </div>
   </section>
 
+  <!-- Foreign Control Summary (shown under camouflage site) -->
+  <section class="section section-alt" id="foreign-panel">
+    <div class="container">
+      <h2 class="section-title">Interconnect Control Summary</h2>
+      <p class="section-desc">Operational overview for Iran link key, resource usage, active connections, and tunnel status</p>
+      <div class="grid grid-2 gap-3 mt-4">
+        <div class="card">
+          <h3>Iran Server Link</h3>
+          <div id="foreign-iran-link" class="mt-2">Loading...</div>
+        </div>
+        <div class="card">
+          <h3>Resource Usage</h3>
+          <div id="foreign-resources" class="mt-2">Loading...</div>
+        </div>
+      </div>
+      <div class="card mt-3">
+        <h3>Active Connections</h3>
+        <div id="foreign-connections" class="mt-2">Loading...</div>
+      </div>
+      <div class="card mt-3">
+        <h3>Active Tunnels</h3>
+        <div id="foreign-tunnels" class="mt-2">Loading...</div>
+      </div>
+    </div>
+  </section>
+
+
   <!-- Footer -->
   <footer class="footer">
     <div class="container">
       <div class="grid grid-4 gap-3">
         <div>
-          <h4>Cloud Infra Academy</h4>
-          <p class="footer-desc">Enterprise-grade cloud infrastructure and DevOps training for engineering teams.</p>
+          <h4>Linux Akademie Berlin GmbH</h4>
+          <p class="footer-desc">Linux education and package operations workshops in German for enterprise teams.</p>
           <div class="footer-badges mt-2">
             <span class="badge">SOC 2 Compliant</span>
             <span class="badge">ISO 27001</span>
@@ -334,11 +361,11 @@
         </div>
         <div><h4>Solutions</h4><a href="#features">Enterprise Training</a><a href="#solutions">Learning Paths</a><a href="#pricing">Team Plans</a><a href="#docs">API Resources</a></div>
         <div><h4>Resources</h4><a href="#docs">Documentation</a><a href="#">System Status</a><a href="#">Knowledge Base</a><a href="#">Community</a></div>
-        <div><h4>Company</h4><a href="#about">About Us</a><a href="#">Security</a><a href="#">Contact</a><a href="#">Privacy & GDPR</a></div>
+        <div><h4>Company</h4><a href="#about">Über uns</a><a href="#">Sicherheit</a><a href="#">Kontakt: +49 30 8876 5512</a><a href="#">Adresse: Potsdamer Platz 11, Berlin</a></div>
       </div>
       <div class="footer-bottom mt-4">
-        <p>&copy; 2024 Cloud Infrastructure Academy. Enterprise training solutions. All rights reserved.</p>
-        <p class="footer-legal">Certified Learning Provider | AWS Training Partner | Microsoft Learning Partner</p>
+        <p>&copy; 2024 Linux Akademie Berlin GmbH (Fictional). All rights reserved.</p>
+        <p class="footer-legal">Handelsregister: HRB 998877 (Fictional) | Support: kontakt@linux-akademie-berlin.de</p>
       </div>
     </div>
   </footer>

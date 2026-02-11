@@ -39,7 +39,7 @@ fi
 echo -e "${GREEN}Node.js $(node -v) installed${NC}"
 
 echo -e "${YELLOW}[3/8] Installing build tools...${NC}"
-apt-get install -y build-essential python3 git curl wget unzip jq dnsutils net-tools nginx socat certbot
+apt-get install -y build-essential python3 git curl wget unzip jq dnsutils nginx socat certbot lsof
 
 echo -e "${YELLOW}[4/8] Setting up project...${NC}"
 
@@ -169,6 +169,7 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
 ELAHE_MODE=foreign
 PORT=3000
 HOST=127.0.0.1
+DOMAIN=${DOMAIN:-}
 ADMIN_USER=admin
 ADMIN_PASS=$(openssl rand -hex 8)
 CORE_ENGINE=xray
@@ -197,12 +198,55 @@ fi
 mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/certs" "$INSTALL_DIR/logs"
 node -e "require('./src/database/migrate').migrate()"
 
+
+release_port_conflicts() {
+  local ports=(80 443)
+  for p in "${ports[@]}"; do
+    local pids
+    pids=$(lsof -t -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | tr '
+' ' ' || true)
+    if [ -n "$pids" ]; then
+      echo -e "${YELLOW}[WARN] Port $p is in use by PID(s): $pids${NC}"
+      for pid in $pids; do
+        local comm
+        comm=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+        if [ "$comm" != "nginx" ]; then
+          echo -e "${YELLOW}[INFO] Stopping process $pid ($comm) to free port $p${NC}"
+          kill -TERM "$pid" 2>/dev/null || true
+        fi
+      done
+    fi
+  done
+}
+
+issue_ssl_certificate() {
+  local domain="$1"
+  if [ -z "$domain" ] || [ "$domain" = "localhost" ]; then
+    return 1
+  fi
+
+  echo -e "${BLUE}[INFO] Requesting fresh Let's Encrypt certificate for $domain...${NC}"
+  certbot certonly --nginx --non-interactive --agree-tos --register-unsafely-without-email     --force-renewal --cert-name "$domain" -d "$domain" || return 1
+
+  ln -sf "/etc/letsencrypt/live/$domain/fullchain.pem" "$INSTALL_DIR/certs/fullchain.pem"
+  ln -sf "/etc/letsencrypt/live/$domain/privkey.pem" "$INSTALL_DIR/certs/privkey.pem"
+  echo -e "${GREEN}[OK] Fresh SSL certificate issued for $domain${NC}"
+  return 0
+}
+
 echo -e "${YELLOW}[7/8] Configuring Nginx...${NC}"
 APP_PORT=3000
-if [ ! -f "$INSTALL_DIR/certs/fullchain.pem" ] || [ ! -f "$INSTALL_DIR/certs/privkey.pem" ]; then
-  echo -e "${YELLOW}[INFO] Generating self-signed certificate...${NC}"
-  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-    -subj "/CN=localhost" \
+release_port_conflicts
+
+DOMAIN_NAME=$(grep "^DOMAIN=" "$INSTALL_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2-)
+if [ -z "$DOMAIN_NAME" ]; then
+  DOMAIN_NAME=$(grep "^EN_DOMAIN=" "$INSTALL_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2-)
+fi
+
+if ! issue_ssl_certificate "$DOMAIN_NAME"; then
+  echo -e "${YELLOW}[INFO] Falling back to self-signed certificate...${NC}"
+  openssl req -x509 -nodes -newkey rsa:2048 -days 30 \
+    -subj "/CN=${DOMAIN_NAME:-localhost}" \
     -keyout "$INSTALL_DIR/certs/privkey.pem" \
     -out "$INSTALL_DIR/certs/fullchain.pem" 2>/dev/null
 fi
@@ -212,13 +256,13 @@ if [ -d "/etc/nginx/sites-available" ]; then
   cat > "$NGINX_SITE" << EOF
 server {
   listen 80;
-  server_name _;
+  server_name ${DOMAIN_NAME:-_};
   return 301 https://\$host\$request_uri;
 }
 
 server {
   listen 443 ssl http2;
-  server_name _;
+  server_name ${DOMAIN_NAME:-_};
   ssl_certificate $INSTALL_DIR/certs/fullchain.pem;
   ssl_certificate_key $INSTALL_DIR/certs/privkey.pem;
   ssl_session_cache shared:SSL:10m;
@@ -242,13 +286,13 @@ else
   cat > /etc/nginx/conf.d/elahe.conf << EOF
 server {
   listen 80;
-  server_name _;
+  server_name ${DOMAIN_NAME:-_};
   return 301 https://\$host\$request_uri;
 }
 
 server {
   listen 443 ssl http2;
-  server_name _;
+  server_name ${DOMAIN_NAME:-_};
   ssl_certificate $INSTALL_DIR/certs/fullchain.pem;
   ssl_certificate_key $INSTALL_DIR/certs/privkey.pem;
 
@@ -325,5 +369,9 @@ echo "║  Service: systemctl status elahe              ║"
 echo "║  Logs:    journalctl -u elahe -f              ║"
 echo "╚══════════════════════════════════════════════╝"
 echo -e "${NC}"
-echo -e "${YELLOW}Note: Self-signed certificate is being used.${NC}"
-echo -e "${YELLOW}To use your own SSL certificate: run 'elahe set-domain'${NC}"
+if [ -n "$DOMAIN_NAME" ]; then
+  echo -e "${GREEN}SSL issued/refreshed for domain: $DOMAIN_NAME${NC}"
+else
+  echo -e "${YELLOW}No domain provided. Temporary self-signed certificate is being used.${NC}"
+  echo -e "${YELLOW}Set DOMAIN in /opt/elahe/.env and reinstall to issue fresh cert.${NC}"
+fi
