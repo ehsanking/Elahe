@@ -109,6 +109,9 @@ module.exports = {
     noise: 3,
     color: true,
     background: '#f0f0f0',
+    difficulty: process.env.CAPTCHA_DIFFICULTY || 'easy', // easy | normal | hard
+    maxAddSub: parseInt(process.env.CAPTCHA_MAX_ADD_SUB, 10) || 20,
+    maxMultiply: parseInt(process.env.CAPTCHA_MAX_MULTIPLY, 10) || 6,
   },
 
   // SSL / HTTPS

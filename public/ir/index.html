@@ -371,7 +371,8 @@
             <div id="login-captcha-svg"></div>
             <button type="button" class="captcha-refresh" onclick="loadCaptcha('login')">&#8635;</button>
           </div>
-          <input type="text" class="form-control" id="login-captcha" placeholder="کد امنیتی را وارد کنید" required dir="ltr">
+          <div id="login-captcha-question" class="captcha-question" aria-live="polite"></div>
+          <input type="text" class="form-control" id="login-captcha" placeholder="جواب سوال امنیتی را وارد کنید" required dir="ltr">
           <input type="hidden" id="login-captcha-id">
         </div>
         <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="login-btn">ورود</button>
@@ -415,7 +416,8 @@
             <div id="register-captcha-svg"></div>
             <button type="button" class="captcha-refresh" onclick="loadCaptcha('register')">&#8635;</button>
           </div>
-          <input type="text" class="form-control" id="register-captcha" placeholder="کد امنیتی را وارد کنید" required dir="ltr">
+          <div id="register-captcha-question" class="captcha-question" aria-live="polite"></div>
+          <input type="text" class="form-control" id="register-captcha" placeholder="جواب سوال امنیتی را وارد کنید" required dir="ltr">
           <input type="hidden" id="register-captcha-id">
         </div>
         <button type="submit" class="btn btn-primary btn-lg" style="width:100%" id="register-btn">عضویت</button>

@@ -64,8 +64,20 @@ async function loadCaptcha(type) {
     const res = await fetch('/api/auth/captcha');
     const data = await res.json();
     captchaData[type] = data;
-    document.getElementById(`${type}-captcha-svg`).innerHTML = data.svg;
-    document.getElementById(`${type}-captcha-id`).value = data.id;
+
+    const svgEl = document.getElementById(`${type}-captcha-svg`);
+    const questionEl = document.getElementById(`${type}-captcha-question`);
+    const idEl = document.getElementById(`${type}-captcha-id`);
+    const answerEl = document.getElementById(`${type}-captcha`);
+
+    if (svgEl) svgEl.innerHTML = data.svg || '';
+    if (questionEl) {
+      questionEl.textContent = data.question
+        ? `سوال امنیتی: ${data.question}`
+        : 'سوال امنیتی بارگذاری نشد. تصویر را رفرش کنید.';
+    }
+    if (idEl) idEl.value = data.id;
+    if (answerEl) answerEl.value = '';
   } catch (e) {
     console.error('Failed to load captcha');
   }

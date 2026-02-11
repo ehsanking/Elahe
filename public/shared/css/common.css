@@ -115,6 +115,7 @@ tr:hover td { background: #f8f9fa; }
 .captcha-box svg { border: 1px solid var(--border); border-radius: 8px; }
 .captcha-refresh { cursor: pointer; padding: 8px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); transition: var(--transition); }
 .captcha-refresh:hover { background: var(--primary); color: white; }
+.captcha-question { margin: 6px 0 8px; font-size: 13px; color: var(--text-secondary); direction: rtl; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
