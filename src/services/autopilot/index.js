@@ -376,9 +376,11 @@ class AutopilotService {
 
     const tx = db.transaction(() => {
       for (const r of results) {
-        // Use a virtual tunnel_id based on engine name (negative IDs for autopilot)
-        const virtualId = -1 * (PORT_RULES.dynamicPorts.candidates.indexOf(r.engine) + 1);
-        insert.run(virtualId || -99, r.latency, r.jitter, r.packetLoss, r.score, r.status);
+        // Autopilot checks engine health directly (not a persisted tunnel row), so tunnel_id
+        // must remain NULL to satisfy monitor_results.tunnel_id foreign key constraint.
+        // Include engine name in status for easier troubleshooting in history.
+        const statusWithEngine = `${r.engine}:${r.status}`;
+        insert.run(null, r.latency, r.jitter, r.packetLoss, r.score, statusWithEngine);
       }
     });
 

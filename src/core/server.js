@@ -299,10 +299,13 @@ function detectSSL() {
   // In installer defaults, Nginx terminates TLS on :443 and proxies to local Node over HTTP.
   // If Node auto-enables HTTPS on an internal port (e.g. 3000), Nginx -> upstream protocol
   // mismatch causes frequent 502 Bad Gateway errors.
-  const proxyTerminationAutoDetected = isLoopbackHost && port !== 443;
+  // In real deployments behind Nginx/Caddy, Node often listens on an internal non-443 port
+  // (commonly 3000) and TLS is already terminated at the proxy. Enabling HTTPS here causes
+  // upstream protocol mismatch (proxy talks HTTP to an HTTPS upstream) and 502 errors.
+  const proxyTerminationAutoDetected = port !== 443 && (isLoopbackHost || sslTerminateProxyMode === 'auto');
   if (
     sslMode === 'auto' &&
-    (sslTerminateProxyMode === 'true' || (sslTerminateProxyMode === 'auto' && proxyTerminationAutoDetected))
+    (sslTerminateProxyMode === 'true' || (sslTerminateProxyMode !== 'false' && proxyTerminationAutoDetected))
   ) {
     return {
       available: false,
