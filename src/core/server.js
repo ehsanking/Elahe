@@ -241,6 +241,24 @@ cron.schedule('0 3 * * *', async () => {
 function detectSSL() {
   const sslConfig = config.ssl || {};
   const sslMode = (sslConfig.enabled || 'auto').toString().toLowerCase();
+  const sslTerminateProxyMode = (process.env.SSL_TERMINATE_PROXY || 'auto').toString().toLowerCase();
+  const host = (config.server.host || '').toLowerCase();
+  const port = config.server.port;
+  const isLoopbackHost = host === '127.0.0.1' || host === 'localhost' || host === '::1';
+
+  // In installer defaults, Nginx terminates TLS on :443 and proxies to local Node over HTTP.
+  // If Node auto-enables HTTPS on an internal port (e.g. 3000), Nginx -> upstream protocol
+  // mismatch causes frequent 502 Bad Gateway errors.
+  const proxyTerminationAutoDetected = isLoopbackHost && port !== 443;
+  if (
+    sslMode === 'auto' &&
+    (sslTerminateProxyMode === 'true' || (sslTerminateProxyMode === 'auto' && proxyTerminationAutoDetected))
+  ) {
+    return {
+      available: false,
+      reason: 'TLS is terminated by reverse proxy (SSL_TERMINATE_PROXY), serving HTTP on upstream port',
+    };
+  }
 
   if (sslMode === 'false') {
     return { available: false, reason: 'SSL explicitly disabled via SSL_ENABLED=false' };

@@ -841,6 +841,7 @@ setup_domain() {
     sed -i "/^SSL_ENABLED=/d" "$ENV_FILE"
     sed -i "/^SSL_CERT=/d" "$ENV_FILE"
     sed -i "/^SSL_KEY=/d" "$ENV_FILE"
+    sed -i "/^SSL_TERMINATE_PROXY=/d" "$ENV_FILE"
     sed -i "/^SUBDOMAINS=/d" "$ENV_FILE"
     
     echo "DOMAIN=$MAIN_DOMAIN" >> "$ENV_FILE"
@@ -852,6 +853,7 @@ setup_domain() {
     echo "SSL_ENABLED=auto" >> "$ENV_FILE"
     echo "SSL_CERT=$CERTS_DIR/fullchain.pem" >> "$ENV_FILE"
     echo "SSL_KEY=$CERTS_DIR/privkey.pem" >> "$ENV_FILE"
+    echo "SSL_TERMINATE_PROXY=true" >> "$ENV_FILE"
     echo "SUBDOMAINS=${SUBDOMAINS_LIST:-}" >> "$ENV_FILE"
   fi
   
@@ -1271,6 +1273,7 @@ do_install() {
     log_ok "Keeping existing configuration"
     # Update mode if changed
     sed -i "s/^ELAHE_MODE=.*/ELAHE_MODE=${SERVER_MODE}/" "$ENV_FILE" 2>/dev/null || true
+    grep -q "^SSL_TERMINATE_PROXY=" "$ENV_FILE" || echo "SSL_TERMINATE_PROXY=true" >> "$ENV_FILE"
   else
   cat > "$ENV_FILE" << ENVEOF
 # Elahe Panel Configuration
@@ -1311,6 +1314,7 @@ DB_PATH=${DATA_DIR}/elahe.db
 SSL_ENABLED=auto
 SSL_CERT=${CERTS_DIR}/fullchain.pem
 SSL_KEY=${CERTS_DIR}/privkey.pem
+SSL_TERMINATE_PROXY=true
 
 # Logging
 LOG_LEVEL=info
