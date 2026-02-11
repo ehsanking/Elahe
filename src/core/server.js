@@ -32,6 +32,7 @@ const tunnelRoutes = require('../api/routes/tunnels');
 
 // Services
 const autopilotService = require('../services/autopilot');
+const SystemMonitor = require('../services/monitor');
 
 const log = createLogger('Server');
 
@@ -94,6 +95,55 @@ app.get('/api/files/terms', (req, res) => {
     res.type('text/plain; charset=utf-8').sendFile(termsPath);
   } else {
     res.status(404).send('Terms file not found');
+  }
+});
+
+
+// ============ FOREIGN PUBLIC STATUS (camouflage dashboard teaser) ============
+app.get('/api/public/status', (req, res) => {
+  if (config.mode !== 'foreign') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  try {
+    const db = getDb();
+    const tunnels = db.prepare(`
+      SELECT id, protocol, port, status, score, latency_ms, jitter_ms, updated_at
+      FROM tunnels
+      WHERE status != 'inactive'
+      ORDER BY updated_at DESC
+      LIMIT 15
+    `).all();
+
+    const iranServer = db.prepare("SELECT id, name, ip, port, connection_token, status, latency_ms, jitter_ms, updated_at FROM servers WHERE type = 'iran' ORDER BY updated_at DESC LIMIT 1").get();
+
+    const resources = {
+      cpu: SystemMonitor.getCPU(),
+      memory: SystemMonitor.getMemory(),
+      disk: SystemMonitor.getDisk(),
+      process: SystemMonitor.getProcessInfo(),
+    };
+
+    const connections = SystemMonitor.getActiveConnections();
+
+    return res.json({
+      success: true,
+      iranLink: iranServer ? {
+        id: iranServer.id,
+        name: iranServer.name,
+        endpoint: `${iranServer.ip}:${iranServer.port}`,
+        status: iranServer.status,
+        key: iranServer.connection_token || 'not-set',
+        latencyMs: iranServer.latency_ms,
+        jitterMs: iranServer.jitter_ms,
+      } : null,
+      resources,
+      connections,
+      activeTunnels: tunnels,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'Unable to load status' });
   }
 });
 

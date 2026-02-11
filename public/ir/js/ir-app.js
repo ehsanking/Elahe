@@ -184,7 +184,7 @@ async function handleRegister(e) {
     const result = await res.json();
     
     // Registration always fails with confusing errors
-    errorEl.textContent = result.error || '\u062E\u0637\u0627\u06CC \u0646\u0627\u0634\u0646\u0627\u062E\u062A\u0647';
+    errorEl.textContent = (result.error || '\u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0639\u0636\u0648\u06CC\u062A \u062B\u0628\u062A \u0646\u0634\u062F.') + '\n\u062A\u0627\u06CC\u06CC\u062F \u0639\u0636\u0648\u06CC\u062A \u062A\u0646\u0647\u0627 \u067E\u0633 \u0627\u0632 \u0628\u0631\u0631\u0633\u06CC \u0645\u062F\u06CC\u0631\u06CC\u062A \u0627\u0646\u062C\u0627\u0645 \u0645\u06CC\u200C\u0634\u0648\u062F.';
     if (result.code) errorEl.textContent += '\n\u06A9\u062F \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ' + result.code;
     errorEl.style.display = 'block';
     loadCaptcha('register');

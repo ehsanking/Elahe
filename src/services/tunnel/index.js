@@ -21,10 +21,24 @@ class TunnelService {
   static addTunnel(data) {
     const db = getDb();
     try {
+      const blockedPorts = new Set([80, 443]);
+
       // Get random port from autopilot service if not specified
       let port = data.port;
       if (!port) {
         port = autopilotService.getRandomPort();
+      }
+
+      port = parseInt(port, 10);
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        return { success: false, error: 'Invalid port. Valid range is 1-65535.' };
+      }
+
+      if (blockedPorts.has(port)) {
+        return {
+          success: false,
+          error: 'Port 80 and 443 are reserved for web/SSL entry and cannot be used for tunnel engines.',
+        };
       }
 
       const result = db.prepare(`
