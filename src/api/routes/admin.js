@@ -58,6 +58,59 @@ router.get('/dashboard', adminAuth, (req, res) => {
     version: '0.0.5',
   };
 
+  if (config.mode === 'foreign') {
+    try {
+      const db = getDb();
+      const iranServer = db.prepare(`
+        SELECT id, name, ip, port, status, connection_token, auth_key, updated_at
+        FROM servers
+        WHERE type = 'iran'
+        ORDER BY updated_at DESC
+        LIMIT 1
+      `).get();
+
+      const activeTunnels = db.prepare(`
+        SELECT id, protocol, transport, port, status, latency_ms, jitter_ms, updated_at
+        FROM tunnels
+        ORDER BY updated_at DESC
+        LIMIT 20
+      `).all();
+
+      const total = activeTunnels.length;
+      const connected = activeTunnels.filter((t) => t.status === 'active').length;
+
+      dashboard.foreignControl = {
+        iranServer: iranServer
+          ? {
+            id: iranServer.id,
+            name: iranServer.name,
+            endpoint: `${iranServer.ip}:${iranServer.port}`,
+            status: iranServer.status,
+            connectionToken: iranServer.connection_token || null,
+            authKey: iranServer.auth_key || null,
+          }
+          : null,
+        tunnelStatus: {
+          total,
+          connected,
+          disconnected: total - connected,
+        },
+        tunnelList: activeTunnels,
+        commandControl: {
+          allowed: Boolean(iranServer?.connection_token),
+          source: iranServer ? 'iran-server' : 'not-configured',
+        },
+      };
+    } catch (e) {
+      dashboard.foreignControl = {
+        iranServer: null,
+        tunnelStatus: { total: 0, connected: 0, disconnected: 0 },
+        tunnelList: [],
+        commandControl: { allowed: false, source: 'error' },
+      };
+    }
+  }
+
   // Add domain/SSL stats
   try { dashboard.domains = DomainService.getStats(); } catch (e) { dashboard.domains = { total: 0 }; }
   // Add SSL auto-renew status

@@ -97,41 +97,109 @@ function navigate(page) {
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
 // ============ DASHBOARD ============
+function setDashboardCardHeaders(headers = {}) {
+  const pairs = [
+    ['user-card-header', headers.user || 'آمار کاربران'],
+    ['server-card-header', headers.server || 'وضعیت سرورها'],
+    ['autopilot-card-header', headers.autopilot || 'وضعیت اتوپایلوت'],
+    ['panel-card-header', headers.panel || 'اطلاعات پنل'],
+    ['stat-label-1', headers.stat1 || 'کل کاربران'],
+    ['stat-label-2', headers.stat2 || 'کاربران فعال'],
+    ['stat-label-3', headers.stat3 || 'سرورها'],
+    ['stat-label-4', headers.stat4 || 'تانل‌های فعال'],
+  ];
+  pairs.forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  });
+}
+
+function renderForeignDashboard(data) {
+  const foreign = data.foreignControl || {};
+  const iranServer = foreign.iranServer || {};
+  const tunnelStatus = foreign.tunnelStatus || { total: 0, connected: 0, disconnected: 0 };
+  const commandControl = foreign.commandControl || { allowed: false, source: 'not-configured' };
+
+  setDashboardCardHeaders({
+    user: 'کلید اتصال به ایران',
+    server: 'وضعیت اتصال تانل‌ها',
+    autopilot: 'وضعیت فرمان‌پذیری',
+    panel: 'جزئیات ارتباط با ایران',
+    stat1: 'تانل‌ها',
+    stat2: 'متصل',
+    stat3: 'قطع',
+    stat4: 'فرمان‌پذیری',
+  });
+
+  document.getElementById('stat-users-total').textContent = tunnelStatus.total || 0;
+  document.getElementById('stat-users-active').textContent = tunnelStatus.connected || 0;
+  document.getElementById('stat-servers-total').textContent = tunnelStatus.disconnected || 0;
+  document.getElementById('stat-tunnels-active').textContent = commandControl.allowed ? 'فعال' : 'غیرفعال';
+  document.getElementById('online-badge').textContent = 'سرور خارج';
+
+  document.getElementById('user-stats-detail').innerHTML = `
+    <div class="user-field"><span style="direction:ltr;font-size:12px">${iranServer.connectionToken || 'تنظیم نشده'}</span><span class="user-field-label">Connection Token</span></div>
+    <div class="user-field"><span style="direction:ltr;font-size:12px">${iranServer.authKey || 'تنظیم نشده'}</span><span class="user-field-label">Auth Key</span></div>`;
+
+  document.getElementById('server-stats-detail').innerHTML = `
+    <div class="user-field"><span class="badge badge-success">${tunnelStatus.connected || 0}</span><span class="user-field-label">متصل</span></div>
+    <div class="user-field"><span class="badge badge-danger">${tunnelStatus.disconnected || 0}</span><span class="user-field-label">قطع</span></div>
+    <div class="user-field"><span>${tunnelStatus.total || 0}</span><span class="user-field-label">کل تانل‌ها</span></div>`;
+
+  document.getElementById('autopilot-dashboard-detail').innerHTML = `
+    <div class="user-field"><span class="badge badge-${commandControl.allowed ? 'success' : 'danger'}">${commandControl.allowed ? 'فعال' : 'غیرفعال'}</span><span class="user-field-label">پذیرش فرمان از ایران</span></div>
+    <div class="user-field"><span>${commandControl.source || '-'}</span><span class="user-field-label">منبع فرمان</span></div>`;
+
+  document.getElementById('panel-mode-detail').innerHTML = `
+    <div class="user-field"><span>${iranServer.name || 'ثبت نشده'}</span><span class="user-field-label">سرور ایران</span></div>
+    <div class="user-field"><span style="direction:ltr">${iranServer.endpoint || '-'}</span><span class="user-field-label">آدرس اتصال</span></div>
+    <div class="user-field"><span class="badge badge-${iranServer.status === 'active' ? 'success' : 'warning'}">${iranServer.status || 'unknown'}</span><span class="user-field-label">وضعیت لینک</span></div>
+    <div class="user-field"><span>${data.version}</span><span class="user-field-label">نسخه پنل</span></div>`;
+}
+
 async function loadDashboard() {
   const data = await api('/dashboard');
   if (!data) return;
+
+  if (panelMode === 'foreign') {
+    renderForeignDashboard(data);
+    loadSystemResources();
+    return;
+  }
+
+  setDashboardCardHeaders();
   document.getElementById('stat-users-total').textContent = data.users.total;
   document.getElementById('stat-users-active').textContent = data.users.active;
   document.getElementById('stat-servers-total').textContent = data.servers.total;
   document.getElementById('stat-tunnels-active').textContent = data.tunnels.active || 0;
-  
+
   // Online users badge
-  document.getElementById('online-badge').textContent = `${data.onlineUsers || 0} \u0622\u0646\u0644\u0627\u06CC\u0646`;
+  document.getElementById('online-badge').textContent = `${data.onlineUsers || 0} آنلاین`;
 
   document.getElementById('user-stats-detail').innerHTML = `
-    <div class="user-field"><span class="badge badge-success">${data.users.online || 0}</span><span class="user-field-label">\u0622\u0646\u0644\u0627\u06CC\u0646</span></div>
-    <div class="user-field"><span>${data.users.active}</span><span class="user-field-label">\u0641\u0639\u0627\u0644</span></div>
-    <div class="user-field"><span>${data.users.expired}</span><span class="user-field-label">\u0645\u0646\u0642\u0636\u06CC</span></div>
-    <div class="user-field"><span>${data.users.limited}</span><span class="user-field-label">\u0645\u062D\u062F\u0648\u062F</span></div>
-    <div class="user-field"><span>${data.users.disabled}</span><span class="user-field-label">\u063A\u06CC\u0631\u0641\u0639\u0627\u0644</span></div>`;
+    <div class="user-field"><span class="badge badge-success">${data.users.online || 0}</span><span class="user-field-label">آنلاین</span></div>
+    <div class="user-field"><span>${data.users.active}</span><span class="user-field-label">فعال</span></div>
+    <div class="user-field"><span>${data.users.expired}</span><span class="user-field-label">منقضی</span></div>
+    <div class="user-field"><span>${data.users.limited}</span><span class="user-field-label">محدود</span></div>
+    <div class="user-field"><span>${data.users.disabled}</span><span class="user-field-label">غیرفعال</span></div>`;
 
   document.getElementById('server-stats-detail').innerHTML = `
-    <div class="user-field"><span>${data.servers.iran}</span><span class="user-field-label">\u0633\u0631\u0648\u0631 \u0627\u06CC\u0631\u0627\u0646</span></div>
-    <div class="user-field"><span>${data.servers.foreign}</span><span class="user-field-label">\u0633\u0631\u0648\u0631 \u062E\u0627\u0631\u062C</span></div>
-    <div class="user-field"><span class="badge badge-success">${data.servers.active}</span><span class="user-field-label">\u0641\u0639\u0627\u0644</span></div>
-    <div class="user-field"><span class="badge badge-danger">${data.tunnels.failed || 0}</span><span class="user-field-label">\u062A\u0627\u0646\u0644 \u0646\u0627\u0645\u0648\u0641\u0642</span></div>`;
+    <div class="user-field"><span>${data.servers.iran}</span><span class="user-field-label">سرور ایران</span></div>
+    <div class="user-field"><span>${data.servers.foreign}</span><span class="user-field-label">سرور خارج</span></div>
+    <div class="user-field"><span class="badge badge-success">${data.servers.active}</span><span class="user-field-label">فعال</span></div>
+    <div class="user-field"><span class="badge badge-danger">${data.tunnels.failed || 0}</span><span class="user-field-label">تانل ناموفق</span></div>`;
 
   const ap = data.autopilot || {};
   document.getElementById('autopilot-dashboard-detail').innerHTML = `
-    <div class="user-field"><span class="badge badge-${ap.enabled !== false ? 'success' : 'danger'}">${ap.enabled !== false ? '\u0641\u0639\u0627\u0644' : '\u063A\u06CC\u0631\u0641\u0639\u0627\u0644'}</span><span class="user-field-label">\u0627\u062A\u0648\u067E\u0627\u06CC\u0644\u0648\u062A</span></div>
-    <div class="user-field"><span class="badge badge-info">${ap.primary443 || '-'}</span><span class="user-field-label">\u0627\u0635\u0644\u06CC \u0631\u0648\u06CC 443</span></div>
-    <div class="user-field"><span class="badge badge-success">\u0647\u0645\u06CC\u0634\u0647 \u0641\u0639\u0627\u0644</span><span class="user-field-label">TrustTunnel (8443)</span></div>`;
+    <div class="user-field"><span class="badge badge-${ap.enabled !== false ? 'success' : 'danger'}">${ap.enabled !== false ? 'فعال' : 'غیرفعال'}</span><span class="user-field-label">اتوپایلوت</span></div>
+    <div class="user-field"><span class="badge badge-info">${ap.primary443 || '-'}</span><span class="user-field-label">اصلی روی 443</span></div>
+    <div class="user-field"><span class="badge badge-success">همیشه فعال</span><span class="user-field-label">TrustTunnel (8443)</span></div>`;
 
   document.getElementById('panel-mode-detail').innerHTML = `
-    <div class="user-field"><span class="badge badge-${panelMode === 'iran' ? 'warning' : 'info'}">${panelMode === 'iran' ? '\u0627\u06CC\u0631\u0627\u0646' : '\u062E\u0627\u0631\u062C'}</span><span class="user-field-label">\u062D\u0627\u0644\u062A</span></div>
-    <div class="user-field"><span>${data.version}</span><span class="user-field-label">\u0646\u0633\u062E\u0647</span></div>
-    <div class="user-field"><span>\u0642\u0648\u0627\u0646\u06CC\u0646 GeoIP: ${data.geoRouting?.total || 0}</span><span class="user-field-label">\u0645\u0633\u06CC\u0631\u06CC\u0627\u0628\u06CC</span></div>
-    <div class="user-field"><span>WARP: ${data.warp?.active ? '\u0641\u0639\u0627\u0644' : '\u063A\u06CC\u0631\u0641\u0639\u0627\u0644'}</span><span class="user-field-label">\u0648\u0627\u0631\u067E</span></div>`;
+    <div class="user-field"><span class="badge badge-${panelMode === 'iran' ? 'warning' : 'info'}">${panelMode === 'iran' ? 'ایران' : 'خارج'}</span><span class="user-field-label">حالت</span></div>
+    <div class="user-field"><span>${data.version}</span><span class="user-field-label">نسخه</span></div>
+    <div class="user-field"><span>قوانین GeoIP: ${data.geoRouting?.total || 0}</span><span class="user-field-label">مسیریابی</span></div>
+    <div class="user-field"><span>WARP: ${data.warp?.active ? 'فعال' : 'غیرفعال'}</span><span class="user-field-label">وارپ</span></div>`;
 
   loadSystemResources();
 }
