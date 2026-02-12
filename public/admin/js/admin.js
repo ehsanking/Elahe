@@ -15,7 +15,8 @@ let capabilities = {};
 
 function normalizePanelMode(mode) {
   const normalized = (mode || '').toString().trim().toLowerCase();
-  if (['foreign', 'kharej', 'external', 'outside', 'out'].includes(normalized)) return 'foreign';
+  if (['foreign', 'kharej', 'external', 'outside', 'out', 'خارج', 'خارح', 'external-server'].includes(normalized)) return 'foreign';
+  if (['iran', 'ir', 'inside', 'internal', 'ایران', 'داخل', 'iran-server'].includes(normalized)) return 'iran';
   return 'iran';
 }
 
