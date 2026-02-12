@@ -117,19 +117,19 @@
 
       <!-- Dashboard Page -->
       <div class="page" id="page-dashboard">
-        <div class="grid grid-4 gap-3 mb-3">
-          <div class="stat-card"><div><div class="stat-value" id="stat-users-total">-</div><div class="stat-label">کل کاربران</div></div><div class="stat-icon stat-blue">&#128100;</div></div>
-          <div class="stat-card"><div><div class="stat-value" id="stat-users-active">-</div><div class="stat-label">کاربران فعال</div></div><div class="stat-icon stat-green">&#9889;</div></div>
-          <div class="stat-card"><div><div class="stat-value" id="stat-servers-total">-</div><div class="stat-label">سرورها</div></div><div class="stat-icon stat-purple">&#128421;</div></div>
-          <div class="stat-card"><div><div class="stat-value" id="stat-tunnels-active">-</div><div class="stat-label">تانل‌های فعال</div></div><div class="stat-icon stat-orange">&#128268;</div></div>
+        <div class="grid grid-4 gap-3 mb-3" id="dashboard-top-stats">
+          <div class="stat-card"><div><div class="stat-value" id="stat-users-total">-</div><div class="stat-label" id="stat-label-1">کل کاربران</div></div><div class="stat-icon stat-blue">&#128100;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="stat-users-active">-</div><div class="stat-label" id="stat-label-2">کاربران فعال</div></div><div class="stat-icon stat-green">&#9889;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="stat-servers-total">-</div><div class="stat-label" id="stat-label-3">سرورها</div></div><div class="stat-icon stat-purple">&#128421;</div></div>
+          <div class="stat-card"><div><div class="stat-value" id="stat-tunnels-active">-</div><div class="stat-label" id="stat-label-4">تانل‌های فعال</div></div><div class="stat-icon stat-orange">&#128268;</div></div>
         </div>
-        <div class="grid grid-2 gap-3">
-          <div class="card"><div class="card-header">آمار کاربران</div><div id="user-stats-detail">در حال بارگذاری...</div></div>
-          <div class="card"><div class="card-header">وضعیت سرورها</div><div id="server-stats-detail">در حال بارگذاری...</div></div>
+        <div class="grid grid-2 gap-3" id="dashboard-main-row">
+          <div class="card"><div class="card-header" id="user-card-header">آمار کاربران</div><div id="user-stats-detail">در حال بارگذاری...</div></div>
+          <div class="card"><div class="card-header" id="server-card-header">وضعیت سرورها</div><div id="server-stats-detail">در حال بارگذاری...</div></div>
         </div>
-        <div class="grid grid-2 gap-3 mt-3">
-          <div class="card"><div class="card-header">وضعیت اتوپایلوت</div><div id="autopilot-dashboard-detail">در حال بارگذاری...</div></div>
-          <div class="card"><div class="card-header">اطلاعات پنل</div><div id="panel-mode-detail">در حال بارگذاری...</div></div>
+        <div class="grid grid-2 gap-3 mt-3" id="dashboard-secondary-row">
+          <div class="card"><div class="card-header" id="autopilot-card-header">وضعیت اتوپایلوت</div><div id="autopilot-dashboard-detail">در حال بارگذاری...</div></div>
+          <div class="card"><div class="card-header" id="panel-card-header">اطلاعات پنل</div><div id="panel-mode-detail">در حال بارگذاری...</div></div>
         </div>
         <div class="card mt-3">
           <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">منابع سیستم<button class="btn btn-sm btn-outline" onclick="loadSystemResources()">&#8635; بروزرسانی</button></div>
