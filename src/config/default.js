@@ -12,8 +12,8 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 function normalizeMode(rawMode) {
   const mode = (rawMode || '').toString().trim().toLowerCase();
-  if (['foreign', 'kharej', 'external', 'outside', 'out'].includes(mode)) return 'foreign';
-  if (['iran', 'ir', 'internal', 'inside'].includes(mode)) return 'iran';
+  if (['foreign', 'kharej', 'external', 'outside', 'out', 'خارج', 'خارح', 'external-server'].includes(mode)) return 'foreign';
+  if (['iran', 'ir', 'internal', 'inside', 'ایران', 'داخل', 'iran-server'].includes(mode)) return 'iran';
   return 'iran';
 }
 
