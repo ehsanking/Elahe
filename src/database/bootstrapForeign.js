@@ -16,11 +16,14 @@ function randomPort(usedPorts) {
 }
 
 function normalizeProtocolName(name) {
-  return String(name || '')
+  const normalized = String(name || '')
     .trim()
     .toLowerCase()
     .replace(/[_\s]+/g, '-')
     .replace(/^-+|-+$/g, '');
+
+  if (normalized === 'cphil') return 'chisel';
+  return normalized;
 }
 
 function bootstrapForeignMultiTunnel() {

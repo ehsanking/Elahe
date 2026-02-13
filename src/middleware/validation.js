@@ -130,7 +130,7 @@ const validationRules = {
     body('foreignServerId')
       .isInt({ min: 1 }).withMessage('Invalid foreign server ID'),
     body('tunnelType')
-      .isIn(['ssh', 'frp', 'gost', 'chisel', 'trusttunnel']).withMessage('Invalid tunnel type'),
+      .isIn(['ssh', 'frp', 'gost', 'chisel', 'cphil', 'psiphon', 'trusttunnel']).withMessage('Invalid tunnel type'),
     body('localPort')
       .isInt({ min: 1, max: 65535 }).withMessage('Local port must be between 1 and 65535'),
     body('remotePort')
@@ -141,7 +141,7 @@ const validationRules = {
   // Protocol config validations
   updateProtocolConfig: [
     body('protocol')
-      .isIn(['vless-reality', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'wireguard', 'openvpn'])
+      .isIn(['vless-reality', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'wireguard', 'openvpn', 'trusttunnel', 'frp', 'gost', 'chisel', 'psiphon'])
       .withMessage('Invalid protocol type'),
     body('enabled')
       .optional()

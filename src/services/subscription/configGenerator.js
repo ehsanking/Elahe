@@ -40,60 +40,75 @@ class ConfigGenerator {
     const iranServers = servers.filter(s => s.type === 'iran' && s.status === 'active');
     const foreignServers = servers.filter(s => s.type === 'foreign' && s.status === 'active');
 
-    const enabledProtocols = JSON.parse(user.protocols_enabled || '[]');
+    const enabledProtocols = new Set(JSON.parse(user.protocols_enabled || '[]'));
+    if (enabledProtocols.has('cphil')) enabledProtocols.add('chisel');
 
     for (const iranServer of iranServers) {
       for (const foreignServer of foreignServers) {
         // ===== VLESS Variants =====
-        if (enabledProtocols.includes('vless-reality')) {
+        if (enabledProtocols.has('vless-reality')) {
           configs.push(this.generateVlessReality(user, iranServer, foreignServer));
         }
-        if (enabledProtocols.includes('vless-reality') || enabledProtocols.includes('vless-ws')) {
+        if (enabledProtocols.has('vless-reality') || enabledProtocols.has('vless-ws')) {
           configs.push(this.generateVlessWS(user, iranServer, foreignServer));
         }
-        if (enabledProtocols.includes('vless-reality') || enabledProtocols.includes('vless-grpc')) {
+        if (enabledProtocols.has('vless-reality') || enabledProtocols.has('vless-grpc')) {
           configs.push(this.generateVlessGRPC(user, iranServer, foreignServer));
         }
 
         // ===== VMess Variants =====
-        if (enabledProtocols.includes('vmess')) {
+        if (enabledProtocols.has('vmess')) {
           configs.push(this.generateVmess(user, iranServer, foreignServer));
           configs.push(this.generateVmessGRPC(user, iranServer, foreignServer));
           configs.push(this.generateVmessTCP(user, iranServer, foreignServer));
         }
 
         // ===== Trojan Variants =====
-        if (enabledProtocols.includes('trojan')) {
+        if (enabledProtocols.has('trojan')) {
           configs.push(this.generateTrojan(user, iranServer, foreignServer));
           configs.push(this.generateTrojanWS(user, iranServer, foreignServer));
           configs.push(this.generateTrojanGRPC(user, iranServer, foreignServer));
         }
 
         // ===== Shadowsocks =====
-        if (enabledProtocols.includes('shadowsocks')) {
+        if (enabledProtocols.has('shadowsocks')) {
           configs.push(this.generateShadowsocks(user, iranServer, foreignServer));
           configs.push(this.generateShadowsocks2022(user, iranServer, foreignServer));
         }
 
         // ===== Hysteria2 =====
-        if (enabledProtocols.includes('hysteria2')) {
+        if (enabledProtocols.has('hysteria2')) {
           configs.push(this.generateHysteria2(user, iranServer, foreignServer));
           configs.push(this.generateHysteria2Obfs(user, iranServer, foreignServer));
         }
 
         // ===== WireGuard =====
-        if (enabledProtocols.includes('wireguard')) {
+        if (enabledProtocols.has('wireguard')) {
           configs.push(...this.generateWireGuard(user, iranServer, foreignServer));
         }
 
         // ===== OpenVPN =====
-        if (enabledProtocols.includes('openvpn')) {
+        if (enabledProtocols.has('openvpn')) {
           configs.push(...this.generateOpenVPN(user, iranServer, foreignServer));
         }
 
         // ===== TrustTunnel =====
-        if (enabledProtocols.includes('trusttunnel')) {
+        if (enabledProtocols.has('trusttunnel')) {
           configs.push(this.generateTrustTunnel(user, iranServer, foreignServer));
+        }
+
+        // ===== Multi-tunnel bridge profiles =====
+        if (enabledProtocols.has('frp')) {
+          configs.push(this.generateFrpBridge(user, iranServer, foreignServer));
+        }
+        if (enabledProtocols.has('gost')) {
+          configs.push(this.generateGostBridge(user, iranServer, foreignServer));
+        }
+        if (enabledProtocols.has('chisel')) {
+          configs.push(this.generateChiselBridge(user, iranServer, foreignServer));
+        }
+        if (enabledProtocols.has('psiphon')) {
+          configs.push(this.generatePsiphonBridge(user, iranServer, foreignServer));
         }
       }
     }
@@ -521,6 +536,85 @@ auth-user-pass
       name: `TrustTunnel/HTTP3 (${iranServer.name})`,
       link, serverIp: iranServer.ip, port: config.ports.trusttunnel,
       config: { uuid: user.uuid, transport: 'quic', alpn: 'h3' },
+    };
+  }
+
+
+  static generateFrpBridge(user, iranServer, foreignServer) {
+    const token = crypto.createHash('sha256').update(`${user.uuid}-frp`).digest('hex').slice(0, 24);
+    const configText = `serverAddr = ${iranServer.ip}
+serverPort = 7000
+auth.token = ${token}
+[[proxies]]
+name = ${user.username}-tcp
+type = tcp
+localPort = 1080
+remotePort = 0`;
+    return {
+      protocol: 'frp',
+      name: `FRP Bridge (${iranServer.name})`,
+      link: `frp://${token}@${iranServer.ip}:7000#Elahe-FRP-${iranServer.name}`,
+      serverIp: iranServer.ip,
+      port: 7000,
+      downloadableConfig: configText,
+      config: { token, serverAddr: iranServer.ip, serverPort: 7000, bridge: `${iranServer.name}->${foreignServer.name}` },
+    };
+  }
+
+  static generateGostBridge(user, iranServer, foreignServer) {
+    const token = crypto.createHash('sha256').update(`${user.uuid}-gost`).digest('hex').slice(0, 24);
+    const configText = `services:
+  - name: relay-${user.username}
+    addr: :8443
+    handler:
+      type: relay
+      auth:
+        username: ${user.username}
+        password: ${token}
+    listener:
+      type: tls`;
+    return {
+      protocol: 'gost',
+      name: `GOST Bridge (${iranServer.name})`,
+      link: `gost://${user.username}:${token}@${iranServer.ip}:8443?transport=tls#Elahe-GOST-${iranServer.name}`,
+      serverIp: iranServer.ip,
+      port: 8443,
+      downloadableConfig: configText,
+      config: { username: user.username, password: token, transport: 'tls', bridge: `${iranServer.name}->${foreignServer.name}` },
+    };
+  }
+
+  static generateChiselBridge(user, iranServer, foreignServer) {
+    const token = crypto.createHash('sha256').update(`${user.uuid}-chisel`).digest('hex').slice(0, 24);
+    const configText = `chisel client --auth ${user.username}:${token} https://${iranServer.ip}:9443 R:1080:127.0.0.1:1080`;
+    return {
+      protocol: 'chisel',
+      name: `Chisel Bridge (${iranServer.name})`,
+      link: `chisel://${user.username}:${token}@${iranServer.ip}:9443#Elahe-Chisel-${iranServer.name}`,
+      serverIp: iranServer.ip,
+      port: 9443,
+      downloadableConfig: configText,
+      config: { username: user.username, password: token, transport: 'https', bridge: `${iranServer.name}->${foreignServer.name}` },
+    };
+  }
+
+  static generatePsiphonBridge(user, iranServer, foreignServer) {
+    const pairingSecret = crypto.randomBytes(12).toString('hex');
+    const profile = {
+      endpoint: `${iranServer.ip}:443`,
+      secret: pairingSecret,
+      tunnel: 'psiphon',
+      fallback: ['gost', 'frp', 'chisel'],
+    };
+
+    return {
+      protocol: 'psiphon',
+      name: `Psiphon Bridge (${iranServer.name})`,
+      link: `psiphon://${Buffer.from(JSON.stringify(profile)).toString('base64url')}#Elahe-Psiphon-${iranServer.name}`,
+      serverIp: iranServer.ip,
+      port: 443,
+      downloadableConfig: JSON.stringify(profile, null, 2),
+      config: profile,
     };
   }
 

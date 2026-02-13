@@ -66,7 +66,7 @@ module.exports = {
     monitorInterval: 30 * 60 * 1000, // 30 minutes
     healthCheckTimeout: 5000, // 5 seconds
     maxRetries: 3,
-    protocols: ['vless-reality', 'trusttunnel', 'wireguard', 'openvpn', 'vmess', 'trojan', 'shadowsocks', 'hysteria2'],
+    protocols: ['vless-reality', 'trusttunnel', 'wireguard', 'openvpn', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'frp', 'gost', 'chisel', 'psiphon'],
   },
 
   // Protocol ports

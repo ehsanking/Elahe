@@ -25,6 +25,7 @@ module.exports = {
     frp: frpEngine,
     gost: gostEngine,
     chisel: chiselEngine,
+    psiphon: chiselEngine,
     trusttunnel: trustTunnelEngine,
   },
 };

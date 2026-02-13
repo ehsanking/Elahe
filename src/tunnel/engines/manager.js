@@ -59,6 +59,16 @@ const ENGINES = {
     priority: 2,
     role: 'backup',
   },
+
+  psiphon: {
+    instance: chiselEngine,
+    name: 'Psiphon Bridge',
+    description: 'Psiphon-compatible HTTPS bridge profile powered by Chisel transport',
+    transport: ['https', 'websocket'],
+    encryption: 'TLS 1.3',
+    priority: 2,
+    role: 'backup',
+  },
   trusttunnel: {
     instance: trustTunnelEngine,
     name: 'TrustTunnel (HTTP/3)',
@@ -100,7 +110,7 @@ class TunnelManager {
    */
   async createTunnel(options) {
     const {
-      engine: engineName,
+      engine: rawEngineName,
       iranServerId,
       foreignServerId,
       port,
@@ -108,6 +118,7 @@ class TunnelManager {
       tunnelConfig = {},
     } = options;
 
+    const engineName = rawEngineName === 'cphil' ? 'chisel' : rawEngineName;
     const engineDef = ENGINES[engineName];
     if (!engineDef) {
       return { success: false, error: `Unknown engine: ${engineName}. Available: ${Object.keys(ENGINES).join(', ')}` };
@@ -302,7 +313,8 @@ class TunnelManager {
    * Generate deployment configuration for a tunnel
    */
   generateDeployConfig(engineName, options) {
-    const engineDef = ENGINES[engineName];
+    const normalizedEngine = engineName === 'cphil' ? 'chisel' : engineName;
+    const engineDef = ENGINES[normalizedEngine];
     if (!engineDef) return { error: `Unknown engine: ${engineName}` };
 
     return engineDef.instance.generateDeployConfig(options);
@@ -378,6 +390,18 @@ class TunnelManager {
         description: 'Chisel HTTP tunnel with TLS - random port assigned on creation',
         config: {
           port: 'random', // Will be assigned on creation
+          transport: 'https/websocket',
+          tlsEnabled: true,
+        },
+      },
+
+      {
+        priority: 2,
+        engine: 'psiphon',
+        name: 'Psiphon Bridge',
+        description: 'Psiphon-compatible HTTPS bridge with random port assignment',
+        config: {
+          port: 'random',
           transport: 'https/websocket',
           tlsEnabled: true,
         },

@@ -21,12 +21,17 @@ async function loadForeignStatus() {
   const conBox = document.getElementById('foreign-connections');
   const tunBox = document.getElementById('foreign-tunnels');
   const refreshedAt = document.getElementById('refresh-at');
+  const pairingBox = document.getElementById('foreign-pairing-key');
   if (!iranBox || !resBox || !conBox || !tunBox) return;
 
   try {
     const res = await fetch('/api/public/status');
     const data = await res.json();
     if (!data.success) throw new Error('status unavailable');
+
+    if (pairingBox) {
+      pairingBox.innerHTML = `<strong>Foreign pairing key:</strong> <code>${data.foreignPairingKey || '-'}</code>`;
+    }
 
     if (data.iranLink) {
       iranBox.innerHTML = `

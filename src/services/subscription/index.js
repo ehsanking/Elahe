@@ -229,7 +229,7 @@ class SubscriptionService {
         backup: {
           name: 'Auto-Switch Backup',
           engine: autopilotStatus.primary443 || 'gost',
-          candidates: ['FRP (TLS)', 'GOST (TLS/QUIC)', 'Chisel (TLS)', 'SSH'],
+          candidates: ['FRP (TLS)', 'GOST (TLS/QUIC)', 'Chisel (TLS)', 'Psiphon Bridge', 'SSH'],
           port: 443,
           description: 'Best tunnel auto-selected every 10 minutes',
         },
