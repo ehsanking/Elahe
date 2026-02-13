@@ -38,6 +38,21 @@ const log = createLogger('Server');
 
 const app = express();
 
+
+function getOrCreateForeignPairingKey(db) {
+  const existing = db.prepare("SELECT value FROM settings WHERE key = 'foreign.pairing_key' LIMIT 1").get();
+  if (existing?.value) return existing.value;
+
+  const pairingKey = `elahe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('foreign.pairing_key', ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+  `).run(pairingKey);
+  return pairingKey;
+}
+
+
 // ============ MIDDLEWARE ============
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -126,6 +141,8 @@ app.get('/api/public/status', (req, res) => {
 
     const connections = SystemMonitor.getActiveConnections();
 
+    const pairingKey = getOrCreateForeignPairingKey(db);
+
     return res.json({
       success: true,
       iranLink: iranServer ? {
@@ -133,10 +150,11 @@ app.get('/api/public/status', (req, res) => {
         name: iranServer.name,
         endpoint: `${iranServer.ip}:${iranServer.port}`,
         status: iranServer.status,
-        key: iranServer.connection_token || 'not-set',
+        key: iranServer.connection_token || pairingKey,
         latencyMs: iranServer.latency_ms,
         jitterMs: iranServer.jitter_ms,
       } : null,
+      foreignPairingKey: pairingKey,
       resources,
       connections,
       activeTunnels: tunnels,

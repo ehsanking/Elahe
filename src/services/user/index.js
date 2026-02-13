@@ -41,7 +41,7 @@ class UserService {
         expiryDate.toISOString(),
         data.maxConnections || config.userDefaults.maxConnections,
         subToken,
-        JSON.stringify(data.protocols || ['vless-reality', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'wireguard', 'openvpn', 'trusttunnel']),
+        JSON.stringify(data.protocols || ['vless-reality', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'wireguard', 'openvpn', 'trusttunnel', 'frp', 'gost', 'chisel', 'psiphon']),
         data.note || null,
         adminId
       );

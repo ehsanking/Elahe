@@ -19,12 +19,13 @@
 <body>
   <main class="status-wrap">
     <h1 style="margin-bottom:8px">Foreign Server Panel</h1>
-    <p class="small" style="margin-bottom:20px">This panel only exposes Iran link key, server resource usage and tunnel connection status.</p>
+    <p class="small" style="margin-bottom:20px">This panel exposes pairing key, Iran link key, server resources and active multi-tunnel status (FRP/GOST/Chisel/Psiphon/WireGuard/OpenVPN).</p>
 
     <div class="status-grid">
       <section class="card">
         <h3>Iran Connection</h3>
         <div id="foreign-iran-link">Loading...</div>
+        <div class="small" id="foreign-pairing-key" style="margin-top:10px"></div>
       </section>
       <section class="card">
         <h3>Resources</h3>
